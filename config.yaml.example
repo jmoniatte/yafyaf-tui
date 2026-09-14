@@ -1,10 +1,8 @@
-# ~/.config/yafyaf-tui/config.yaml
+# ~/.config/yafyaf-tui/config.yaml (optional)
 
 # Color theme: onedark or onelight
 theme: onedark
 
-# Base URL of the YafYaf instance
-url: http://localhost:3000
-
-# The API token is not kept here. The TUI asks for your email and password on
-# first start and saves the token it gets to ~/.config/yafyaf-tui/token (mode 600).
+# The server is not configured here: yaf talks to https://yafyaf.com unless
+# started with --url or with YAFYAF_URL set. Tokens are saved per server in
+# ~/.config/yafyaf-tui/tokens/ (mode 600).

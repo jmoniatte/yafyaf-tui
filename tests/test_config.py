@@ -3,48 +3,56 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from yafyaf_tui.config import Config, TokenStore, load_config
+from yafyaf_tui.config import DEFAULT_URL, Config, TokenStore, load_config, resolve_url
 
 
 class LoadConfigTest(unittest.TestCase):
-    def test_reads_settings_and_strips_trailing_slash(self) -> None:
+    def test_reads_theme_and_treats_missing_file_as_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yaml"
-            path.write_text("theme: onelight\nurl: http://localhost:3000/\n")
+            path.write_text("theme: onelight\n")
             config = load_config(path)
-
         self.assertEqual(config.theme, "onelight")
-        self.assertEqual(config.url, "http://localhost:3000")
-        self.assertTrue(config.is_complete)
         self.assertEqual(config.warnings, [])
 
-    def test_missing_file_and_missing_settings_are_reported(self) -> None:
         missing = load_config(Path("/nonexistent/config.yaml"))
-        self.assertFalse(missing.is_complete)
-        self.assertEqual(len(missing.warnings), 1)
-        self.assertIn("not found", missing.warnings[0])
+        self.assertEqual(missing, Config())
 
+    def test_invalid_file_falls_back_to_defaults_with_a_warning(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yaml"
-            path.write_text("theme: onedark\n")
-            partial = load_config(path)
-        self.assertFalse(partial.is_complete)
-        self.assertEqual(partial.warnings, ["Missing setting: url"])
+            path.write_text("theme: [unclosed\n")
+            broken = load_config(path)
+            path.write_text("- just\n- a list\n")
+            not_a_mapping = load_config(path)
 
-    def test_invalid_yaml_falls_back_to_defaults(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "config.yaml"
-            path.write_text("url: [unclosed\n")
-            config = load_config(path)
-        self.assertEqual(config.theme, Config().theme)
-        self.assertEqual(len(config.warnings), 1)
-        self.assertIn("not valid YAML", config.warnings[0])
+        self.assertEqual(broken.theme, Config().theme)
+        self.assertEqual(len(broken.warnings), 1)
+        self.assertIn("not valid YAML", broken.warnings[0])
+        self.assertEqual(not_a_mapping.warnings, ["Config file must contain a mapping of settings"])
+
+
+class ResolveUrlTest(unittest.TestCase):
+    def test_flag_beats_environment_beats_default(self) -> None:
+        self.assertEqual(resolve_url(None, {}), DEFAULT_URL)
+        self.assertEqual(resolve_url(None, {"YAFYAF_URL": "http://localhost:3000/"}), "http://localhost:3000")
+        self.assertEqual(
+            resolve_url("http://localhost:3100", {"YAFYAF_URL": "http://localhost:3000"}),
+            "http://localhost:3100",
+        )
+        self.assertEqual(resolve_url("", {"YAFYAF_URL": ""}), DEFAULT_URL)
 
 
 class TokenStoreTest(unittest.TestCase):
+    def test_file_is_named_after_the_server(self) -> None:
+        directory = Path("/tokens")
+        self.assertEqual(TokenStore.for_url(DEFAULT_URL, directory).path, directory / "yafyaf.com")
+        self.assertEqual(TokenStore.for_url("http://localhost:3000", directory).path, directory / "localhost_3000")
+        self.assertEqual(TokenStore.for_url("https://yafyaf.com:443", directory).path, directory / "yafyaf.com_443")
+
     def test_round_trips_the_token_in_a_user_only_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            store = TokenStore(Path(tmp) / "nested" / "token")
+            store = TokenStore.for_url("http://localhost:3000", Path(tmp) / "tokens")
             self.assertEqual(store.load(), "")
 
             store.save("abc123")

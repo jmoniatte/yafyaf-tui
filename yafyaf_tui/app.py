@@ -8,7 +8,7 @@ from textual.containers import Vertical
 from textual.widgets import Static
 
 from .api import ApiConnectionError, AuthenticationError, Session, User, YafyafClient
-from .config import CONFIG_FILE, Config, TokenStore, load_config
+from .config import DEFAULT_URL, Config, TokenStore, load_config
 from .screens import HelpScreen, LoginScreen
 from .shortcuts import GENERAL
 from .widgets import AppHeader
@@ -35,33 +35,28 @@ class YafyafApp(App):
         Binding("q", "quit", "Quit", group=GENERAL),
     ]
 
-    def __init__(self, config: Config | None = None, token_store: TokenStore | None = None) -> None:
+    def __init__(
+        self,
+        url: str = DEFAULT_URL,
+        config: Config | None = None,
+        token_store: TokenStore | None = None,
+    ) -> None:
+        self.url = url
         self.config = config if config is not None else load_config()
-        self.token_store = token_store if token_store is not None else TokenStore()
-        self.client = YafyafClient(self.config.url, self.token_store.load())
+        self.token_store = token_store if token_store is not None else TokenStore.for_url(url)
+        self.client = YafyafClient(url, self.token_store.load())
         self.user: User | None = None
         self.CSS = build_css(self.config.theme)
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        yield AppHeader()
-        if not self.config.is_complete:
-            yield from self._compose_no_config()
-            return
+        yield AppHeader(self.url)
         with Vertical(id="main"):
             yield Static("", id="main-placeholder")
 
-    def _compose_no_config(self) -> ComposeResult:
-        with Vertical(id="no-config-dialog"):
-            yield Static("Configuration needed", id="dialog-title")
-            yield Static(f"Create {CONFIG_FILE} with the url of your YafYaf.", id="no-config-message")
-            yield Static("See config.yaml.example in the repository.", id="no-config-help")
-            for warning in self.config.warnings:
-                yield Static(warning, classes="no-config-warning")
-
     def on_mount(self) -> None:
-        if not self.config.is_complete:
-            return
+        for warning in self.config.warnings:
+            self.notify(warning, title="Config", severity="warning", timeout=10)
         if self.client.token:
             self._check_token()
         else:

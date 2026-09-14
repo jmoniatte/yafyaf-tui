@@ -16,19 +16,6 @@ Or directly:
 uv tool install ./yafyaf-tui
 ```
 
-## Configuration
-
-Create `~/.config/yafyaf-tui/config.yaml`:
-
-```yaml
-theme: onedark
-url: https://yafyaf.example.com
-```
-
-On first start the TUI asks for your YafYaf email and password, exchanges them for an API
-token, and saves the token to `~/.config/yafyaf-tui/token` (readable by you only). Delete
-that file to log out; the TUI will ask for credentials again.
-
 ## Usage
 
 ```bash
@@ -36,7 +23,30 @@ yaf
 yaf --version
 ```
 
+On first start the TUI asks for your YafYaf email and password, exchanges them for an API
+token, and saves the token to `~/.config/yafyaf-tui/tokens/yafyaf.com` (readable by you only).
+Delete that file to log out; the TUI will ask for credentials again.
+
 Press `?` for the keyboard shortcuts and `q` to quit.
+
+## Configuration
+
+Nothing is required. To change the color theme, create `~/.config/yafyaf-tui/config.yaml`:
+
+```yaml
+theme: onelight
+```
+
+### Talking to another server
+
+Developers can point the TUI at a local YafYaf with a flag or an environment variable. The
+flag wins over the variable, and the header shows the server whenever it is not
+`https://yafyaf.com`. Each server gets its own token file under `~/.config/yafyaf-tui/tokens/`.
+
+```bash
+yaf --url http://localhost:3000
+YAFYAF_URL=http://localhost:3000 yaf
+```
 
 ## Development
 

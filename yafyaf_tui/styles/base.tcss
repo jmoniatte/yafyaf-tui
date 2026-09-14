@@ -52,6 +52,11 @@ ModalScreen {
     color: $comment;
 }
 
+#app-url {
+    width: auto;
+    color: $yellow;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    MAIN AREA
    ═══════════════════════════════════════════════════════════════════════ */
@@ -62,39 +67,6 @@ ModalScreen {
 
 #main-placeholder {
     color: $comment;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   NO CONFIG
-   ═══════════════════════════════════════════════════════════════════════ */
-
-#no-config-dialog {
-    width: 70;
-    height: auto;
-    background: $bg-dark;
-    padding: 1 2;
-    margin: 1 0 0 2;
-}
-
-#no-config-dialog #dialog-title {
-    text-style: bold;
-    color: $yellow;
-    border-bottom: ascii $gutter;
-    margin-bottom: 1;
-}
-
-#no-config-message {
-    color: $fg;
-}
-
-#no-config-help {
-    color: $comment;
-    margin-top: 1;
-}
-
-.no-config-warning {
-    color: $yellow;
-    margin-top: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

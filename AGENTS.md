@@ -34,7 +34,7 @@ There is no pytest. `ruff` is pinned in the `dev` dependency group, so use
 yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
   yafyaf_tui/           # Python package
     app.py              # Main Textual app
-    config.py           # Config loading (~/.config/yafyaf-tui/config.yaml) + TokenStore
+    config.py           # Server URL resolution, optional config.yaml, TokenStore
     api/client.py       # Blocking urllib client for /api/; call it via asyncio.to_thread
     shortcuts.py        # Help screen contents, read off the bindings
     widgets/            # Textual widgets
@@ -42,15 +42,16 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
     styles/             # base.tcss (layout) + themes/*.tcss (colors)
 ```
 
-## Config
+## Server and config
 
-`~/.config/yafyaf-tui/config.yaml` - see `config.yaml.example`.
+`yaf` talks to `https://yafyaf.com` unless started with `--url` or `YAFYAF_URL` (flag wins);
+see `config.resolve_url`. End users configure nothing.
 
-- `theme`: onedark or onelight
-- `url`: base URL of the YafYaf instance
+`~/.config/yafyaf-tui/config.yaml` is optional and only holds `theme` (onedark or onelight).
 
-The API token is not in the config file. `TokenStore` keeps it in
-`~/.config/yafyaf-tui/token` (mode 600); the login screen writes it and a 401 clears it.
+The API token is not in the config file. `TokenStore.for_url` keeps one token per server in
+`~/.config/yafyaf-tui/tokens/<host>[_<port>]` (mode 600); the login screen writes it and a
+401 clears it.
 
 ## API client
 

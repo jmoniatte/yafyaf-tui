@@ -12,7 +12,7 @@ from yafyaf_tui import __version__, shortcuts
 from yafyaf_tui.__main__ import main
 from yafyaf_tui.api import AuthenticationError, Session, User
 from yafyaf_tui.app import YafyafApp
-from yafyaf_tui.config import Config, TokenStore
+from yafyaf_tui.config import DEFAULT_URL, Config, TokenStore
 from yafyaf_tui.screens import HelpScreen, LoginScreen
 
 ME = User(id="abc", email="me@example.com")
@@ -26,6 +26,17 @@ class MainTest(unittest.TestCase):
         self.assertEqual(raised.exception.code, 0)
         self.assertEqual(output.getvalue().strip(), f"YafYaf TUI {__version__}")
 
+    def test_url_flag_and_environment_pick_the_server(self) -> None:
+        with patch("yafyaf_tui.__main__.YafyafApp") as app_class:
+            with patch.dict("os.environ", {"YAFYAF_URL": ""}):
+                main([])
+            with patch.dict("os.environ", {"YAFYAF_URL": "http://localhost:3000"}):
+                main([])
+                main(["--url", "http://localhost:3100/"])
+        urls = [call.kwargs["url"] for call in app_class.call_args_list]
+        self.assertEqual(urls, [DEFAULT_URL, "http://localhost:3000", "http://localhost:3100"])
+        self.assertEqual(app_class.return_value.run.call_count, 3)
+
 
 class AppTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -35,8 +46,8 @@ class AppTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def _app(self) -> YafyafApp:
-        return YafyafApp(Config(url="http://localhost:3000"), self.store)
+    def _app(self, url: str = "http://localhost:3000") -> YafyafApp:
+        return YafyafApp(url, Config(), self.store)
 
     def test_help_screen_documents_every_binding(self) -> None:
         async def exercise() -> None:
@@ -63,17 +74,32 @@ class AppTest(unittest.TestCase):
 
         asyncio.run(exercise())
 
-    def test_shows_config_help_when_settings_are_missing(self) -> None:
+    def test_header_names_the_server_only_when_it_is_not_production(self) -> None:
         async def exercise() -> None:
-            config = Config(warnings=["Config file not found: /x/config.yaml"])
-            app = YafyafApp(config, self.store)
-            async with app.run_test(size=(100, 34)) as pilot:
-                await pilot.pause()
-                app.query_one("#no-config-dialog")
-                warnings = [static.content for static in app.query(".no-config-warning")]
-                self.assertEqual(warnings, config.warnings)
-                self.assertFalse(app.query("#main-placeholder"))
-                self.assertNotIsInstance(app.screen, LoginScreen)
+            self.store.save("good")
+            with patch("yafyaf_tui.api.client.YafyafClient.me", return_value=ME):
+                local = self._app("http://localhost:3000")
+                async with local.run_test(size=(100, 34)) as pilot:
+                    await pilot.pause()
+                    self.assertEqual(local.query_one("#app-url", Static).content, "http://localhost:3000")
+
+                production = self._app(DEFAULT_URL)
+                async with production.run_test(size=(100, 34)) as pilot:
+                    await pilot.pause()
+                    self.assertFalse(production.query("#app-url"))
+
+        asyncio.run(exercise())
+
+    def test_config_warnings_are_shown_as_notifications(self) -> None:
+        async def exercise() -> None:
+            self.store.save("good")
+            config = Config(warnings=["Config file is not valid YAML: oops"])
+            app = YafyafApp("http://localhost:3000", config, self.store)
+            with patch("yafyaf_tui.api.client.YafyafClient.me", return_value=ME):
+                async with app.run_test(size=(100, 34), notifications=True) as pilot:
+                    await pilot.pause()
+                    messages = [toast.message for toast in app._notifications]
+                    self.assertEqual(messages, config.warnings)
 
         asyncio.run(exercise())
 

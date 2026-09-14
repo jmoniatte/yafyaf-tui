@@ -1,34 +1,32 @@
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import yaml
 
 CONFIG_DIR = Path.home() / ".config" / "yafyaf-tui"
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
-TOKEN_FILE = CONFIG_DIR / "token"
+TOKENS_DIR = CONFIG_DIR / "tokens"
 DEFAULT_THEME = "onedark"
+DEFAULT_URL = "https://yafyaf.com"
+URL_ENV_VAR = "YAFYAF_URL"
 
 
 @dataclass
 class Config:
-    """Settings the user edits by hand; secrets live in TokenStore."""
+    """Optional, hand-edited settings; the server URL and token are not among them."""
 
     theme: str = DEFAULT_THEME
-    url: str = ""
-    # Why the config file could not be used; the UI shows these
+    # Why the config file was ignored; the UI shows these
     warnings: list[str] = field(default_factory=list)
-
-    @property
-    def is_complete(self) -> bool:
-        return bool(self.url)
 
 
 def load_config(path: Path = CONFIG_FILE) -> Config:
-    """Read the config file; return defaults plus warnings when it is missing or invalid."""
+    """Read the config file if there is one; a missing file just means defaults."""
     config = Config()
     if not path.exists():
-        config.warnings.append(f"Config file not found: {path}")
         return config
 
     try:
@@ -36,22 +34,33 @@ def load_config(path: Path = CONFIG_FILE) -> Config:
     except yaml.YAMLError as error:
         config.warnings.append(f"Config file is not valid YAML: {error}")
         return config
-    if not isinstance(data, dict):
+    if not isinstance(data, Mapping):
         config.warnings.append("Config file must contain a mapping of settings")
         return config
 
     config.theme = str(data.get("theme") or DEFAULT_THEME)
-    config.url = str(data.get("url") or "").rstrip("/")
-    if not config.url:
-        config.warnings.append("Missing setting: url")
     return config
 
 
-class TokenStore:
-    """The API token, kept in its own user-only file so config.yaml holds no secrets."""
+def resolve_url(flag: str | None = None, environ: Mapping[str, str] = os.environ) -> str:
+    """Pick the server: the --url flag, then $YAFYAF_URL, then production."""
+    url = flag or environ.get(URL_ENV_VAR) or DEFAULT_URL
+    return url.strip().rstrip("/")
 
-    def __init__(self, path: Path = TOKEN_FILE) -> None:
+
+class TokenStore:
+    """One API token per server, each in its own user-only file so config.yaml holds no secrets."""
+
+    def __init__(self, path: Path) -> None:
         self.path = path
+
+    @classmethod
+    def for_url(cls, url: str, directory: Path = TOKENS_DIR) -> "TokenStore":
+        parts = urlsplit(url)
+        name = parts.hostname or "unknown"
+        if parts.port:
+            name = f"{name}_{parts.port}"
+        return cls(directory / name)
 
     def load(self) -> str:
         try:
