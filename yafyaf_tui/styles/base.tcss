@@ -1,0 +1,200 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   BASE STYLES - Layout and structure (colors come from theme)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+Screen {
+    background: $bg;
+    color: $fg;
+    border: solid $gutter;
+}
+
+ModalScreen {
+    border: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   APP HEADER
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#app-header {
+    dock: top;
+    height: auto;
+    background: $bg;
+    padding: 0 1;
+    border-bottom: solid $gutter;
+    margin: 0 0 1 0;
+}
+
+#app-title-group {
+    width: auto;
+    height: auto;
+}
+
+#header-spacer {
+    width: 1fr;
+}
+
+#app-title {
+    width: auto;
+    text-style: bold;
+    color: $blue;
+    background: transparent;
+}
+
+#app-title:hover {
+    color: $blue;
+    text-style: bold underline;
+    background: transparent;
+}
+
+#app-subtitle {
+    width: auto;
+    color: $comment;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MAIN AREA
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#main {
+    padding: 0 1;
+}
+
+#main-placeholder {
+    color: $comment;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   NO CONFIG
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#no-config-dialog {
+    width: 70;
+    height: auto;
+    background: $bg-dark;
+    padding: 1 2;
+    margin: 1 0 0 2;
+}
+
+#no-config-dialog #dialog-title {
+    text-style: bold;
+    color: $yellow;
+    border-bottom: ascii $gutter;
+    margin-bottom: 1;
+}
+
+#no-config-message {
+    color: $fg;
+}
+
+#no-config-help {
+    color: $comment;
+    margin-top: 1;
+}
+
+.no-config-warning {
+    color: $yellow;
+    margin-top: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   HELP SCREEN
+   ═══════════════════════════════════════════════════════════════════════ */
+
+HelpScreen {
+    align: center top;
+    background: $bg 80%;
+}
+
+HelpScreen > Vertical {
+    width: auto;
+    min-width: 64;
+    max-width: 70;
+    height: auto;
+    max-height: 80%;
+    background: $bg-dark;
+    border: none;
+    padding: 1 2;
+    margin-top: 4;
+}
+
+HelpScreen Static {
+    color: $fg;
+}
+
+HelpScreen #dialog-title {
+    text-style: bold;
+    color: $blue;
+    border-bottom: ascii $gutter;
+}
+
+HelpScreen #title-separator {
+    height: 1;
+}
+
+HelpScreen .section-title {
+    text-style: bold;
+    color: $fg;
+    border-bottom: ascii $gutter;
+}
+
+HelpScreen #help-sections {
+    height: auto;
+}
+
+HelpScreen .help-section {
+    height: auto;
+}
+
+HelpScreen #help-actions {
+    width: 32;
+    margin-right: 2;
+}
+
+HelpScreen #help-general {
+    width: 32;
+}
+
+HelpScreen .shortcut-row {
+    height: 1;
+}
+
+HelpScreen .shortcut-key {
+    width: 8;
+    color: $green;
+}
+
+HelpScreen .shortcut-desc {
+    color: $fg;
+}
+
+HelpScreen #help-footer-spacer {
+    height: 1;
+}
+
+HelpScreen #help-footer {
+    height: 1;
+    align: right middle;
+}
+
+HelpScreen #help-footer .spacer {
+    width: 1fr;
+}
+
+HelpScreen #help-version {
+    width: auto;
+    margin-left: 1;
+    color: $comment;
+}
+
+HelpScreen #help-repository {
+    width: auto;
+    color: $blue;
+    background: transparent;
+}
+
+HelpScreen #help-repository:hover {
+    color: $blue;
+    text-style: underline;
+    background: transparent;
+}

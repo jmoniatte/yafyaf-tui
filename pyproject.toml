@@ -1,0 +1,31 @@
+[project]
+name = "yafyaf-tui"
+dynamic = ["version"]
+description = "TUI for the YafYaf notes API"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "textual>=7.2.0",
+    "rich>=14.2.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+yaf = "yafyaf_tui.__main__:main"
+
+[dependency-groups]
+# 0.16 turns on a much larger default rule set; adopt it deliberately, not by drift
+dev = ["ruff>=0.15.7,<0.16"]
+
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["yafyaf_tui*"]
+
+[tool.setuptools.package-data]
+yafyaf_tui = ["styles/*.tcss", "styles/themes/*.tcss"]
+
+[tool.setuptools_scm]

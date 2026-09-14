@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+build/
+dist/
+
+# Vim
+*.swp
+*.swo
+*~
+.*.swp
+.*.swo
+Session.vim
+.netrwhist

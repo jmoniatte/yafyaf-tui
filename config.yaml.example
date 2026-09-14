@@ -1,0 +1,10 @@
+# ~/.config/yafyaf-tui/config.yaml
+
+# Color theme: onedark or onelight
+theme: onedark
+
+# Base URL of the YafYaf instance
+url: http://localhost:3000
+
+# API token, issued by POST /api/auth_tokens
+token: replace-me
