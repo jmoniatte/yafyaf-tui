@@ -1,15 +1,21 @@
 import asyncio
 import contextlib
 import io
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
-from textual.widgets import Static
+from textual.widgets import Input, Static
 
 from yafyaf_tui import __version__, shortcuts
 from yafyaf_tui.__main__ import main
+from yafyaf_tui.api import AuthenticationError, Session, User
 from yafyaf_tui.app import YafyafApp
-from yafyaf_tui.config import Config
-from yafyaf_tui.screens import HelpScreen
+from yafyaf_tui.config import Config, TokenStore
+from yafyaf_tui.screens import HelpScreen, LoginScreen
+
+ME = User(id="abc", email="me@example.com")
 
 
 class MainTest(unittest.TestCase):
@@ -22,42 +28,120 @@ class MainTest(unittest.TestCase):
 
 
 class AppTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.store = TokenStore(Path(self.tmp.name) / "token")
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _app(self) -> YafyafApp:
+        return YafyafApp(Config(url="http://localhost:3000"), self.store)
+
     def test_help_screen_documents_every_binding(self) -> None:
         async def exercise() -> None:
-            app = YafyafApp(Config(url="http://localhost:3000", token="abc"))
-            async with app.run_test(size=(100, 34)) as pilot:
-                await pilot.pause()
-                self.assertEqual(
-                    app.query_one("#main-placeholder", Static).content,
-                    "Connected to http://localhost:3000",
-                )
-                await pilot.press("?")
-                await pilot.pause()
-                self.assertIsInstance(app.screen, HelpScreen)
-                keys = {static.content for static in app.screen.query(".shortcut-key")}
-                expected = {
-                    shortcut.key
-                    for section in shortcuts.SECTIONS
-                    for shortcut in shortcuts.for_section(section, app.BINDINGS)
-                }
-                self.assertEqual(keys, expected)
-                self.assertIn("?", keys)
-                self.assertIn("q", keys)
-                await pilot.press("escape")
-                await pilot.pause()
-                self.assertNotIsInstance(app.screen, HelpScreen)
+            self.store.save("good")
+            app = self._app()
+            with patch("yafyaf_tui.api.client.YafyafClient.me", return_value=ME):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await pilot.pause()
+                    await pilot.press("?")
+                    await pilot.pause()
+                    self.assertIsInstance(app.screen, HelpScreen)
+                    keys = {static.content for static in app.screen.query(".shortcut-key")}
+                    expected = {
+                        shortcut.key
+                        for section in shortcuts.SECTIONS
+                        for shortcut in shortcuts.for_section(section, app.BINDINGS)
+                    }
+                    self.assertEqual(keys, expected)
+                    self.assertIn("?", keys)
+                    self.assertIn("q", keys)
+                    await pilot.press("escape")
+                    await pilot.pause()
+                    self.assertNotIsInstance(app.screen, HelpScreen)
 
         asyncio.run(exercise())
 
     def test_shows_config_help_when_settings_are_missing(self) -> None:
         async def exercise() -> None:
             config = Config(warnings=["Config file not found: /x/config.yaml"])
-            app = YafyafApp(config)
+            app = YafyafApp(config, self.store)
             async with app.run_test(size=(100, 34)) as pilot:
                 await pilot.pause()
                 app.query_one("#no-config-dialog")
                 warnings = [static.content for static in app.query(".no-config-warning")]
                 self.assertEqual(warnings, config.warnings)
                 self.assertFalse(app.query("#main-placeholder"))
+                self.assertNotIsInstance(app.screen, LoginScreen)
+
+        asyncio.run(exercise())
+
+    def test_saved_token_is_checked_and_user_is_shown(self) -> None:
+        async def exercise() -> None:
+            self.store.save("good")
+            app = self._app()
+            with patch("yafyaf_tui.api.client.YafyafClient.me", return_value=ME) as me:
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await pilot.pause()
+                    await app.workers.wait_for_complete()
+                    await pilot.pause()
+                    me.assert_called_once()
+                    self.assertNotIsInstance(app.screen, LoginScreen)
+                    self.assertEqual(app.query_one("#main-placeholder", Static).content, "Signed in as me@example.com")
+
+        asyncio.run(exercise())
+
+    def test_login_saves_the_token_and_shows_the_user(self) -> None:
+        async def exercise() -> None:
+            app = self._app()
+            session = Session(user=ME, token="fresh")
+            with patch("yafyaf_tui.api.client.YafyafClient.login", return_value=session) as login:
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await pilot.pause()
+                    self.assertIsInstance(app.screen, LoginScreen)
+
+                    await pilot.press("enter")
+                    await pilot.pause()
+                    self.assertIs(app.screen.focused, app.screen.query_one("#password", Input))
+                    await pilot.press("enter")
+                    await pilot.pause()
+                    self.assertEqual(
+                        app.screen.query_one("#login-error", Static).content,
+                        "Email and password are required",
+                    )
+
+                    app.screen.query_one("#email", Input).value = "me@example.com"
+                    app.screen.query_one("#password", Input).value = "secret"
+                    app.screen.query_one("#password", Input).focus()
+                    await pilot.press("enter")
+                    await app.screen.workers.wait_for_complete()
+                    await pilot.pause()
+
+                    login.assert_called_once_with("me@example.com", "secret")
+                    self.assertNotIsInstance(app.screen, LoginScreen)
+                    self.assertEqual(self.store.load(), "fresh")
+                    self.assertEqual(app.client.token, "fresh")
+                    self.assertEqual(app.query_one("#main-placeholder", Static).content, "Signed in as me@example.com")
+
+        asyncio.run(exercise())
+
+    def test_rejected_token_is_cleared_and_login_is_asked_again(self) -> None:
+        async def exercise() -> None:
+            self.store.save("stale")
+            app = self._app()
+            error = AuthenticationError(401, "Authentication is required and has failed")
+            with patch("yafyaf_tui.api.client.YafyafClient.me", side_effect=error):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await pilot.pause()
+                    await app.workers.wait_for_complete()
+                    await pilot.pause()
+                    self.assertIsInstance(app.screen, LoginScreen)
+                    self.assertEqual(self.store.load(), "")
+                    self.assertIn("rejected", app.screen.query_one("#login-error", Static).content)
+
+                    await pilot.press("escape")
+                    await pilot.pause()
+            self.assertEqual(app.return_code, 0)
 
         asyncio.run(exercise())

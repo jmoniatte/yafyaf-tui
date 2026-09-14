@@ -34,7 +34,8 @@ There is no pytest. `ruff` is pinned in the `dev` dependency group, so use
 yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
   yafyaf_tui/           # Python package
     app.py              # Main Textual app
-    config.py           # Config loading (~/.config/yafyaf-tui/config.yaml)
+    config.py           # Config loading (~/.config/yafyaf-tui/config.yaml) + TokenStore
+    api/client.py       # Blocking urllib client for /api/; call it via asyncio.to_thread
     shortcuts.py        # Help screen contents, read off the bindings
     widgets/            # Textual widgets
     screens/            # Textual screens
@@ -47,7 +48,16 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
 
 - `theme`: onedark or onelight
 - `url`: base URL of the YafYaf instance
-- `token`: API token from `POST /api/auth_tokens`
+
+The API token is not in the config file. `TokenStore` keeps it in
+`~/.config/yafyaf-tui/token` (mode 600); the login screen writes it and a 401 clears it.
+
+## API client
+
+`YafyafClient` uses only the standard library (urllib). It raises `AuthenticationError`
+on 401, `ApiError` for other error statuses (message taken from the `error` or `errors`
+body), and `ApiConnectionError` when the server cannot be reached. It blocks, so screens
+run it through `asyncio.to_thread` inside a `@work` method.
 
 ## Versions
 

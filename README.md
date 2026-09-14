@@ -23,16 +23,11 @@ Create `~/.config/yafyaf-tui/config.yaml`:
 ```yaml
 theme: onedark
 url: https://yafyaf.example.com
-token: your-api-token
 ```
 
-Get a token from the API with your YafYaf email and password:
-
-```bash
-curl -X POST https://yafyaf.example.com/api/auth_tokens \
-  -H "Accept: application/json" \
-  -d "user[email]=you@example.com" -d "user[password]=secret"
-```
+On first start the TUI asks for your YafYaf email and password, exchanges them for an API
+token, and saves the token to `~/.config/yafyaf-tui/token` (readable by you only). Delete
+that file to log out; the TUI will ask for credentials again.
 
 ## Usage
 

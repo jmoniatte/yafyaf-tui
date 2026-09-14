@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -5,22 +6,22 @@ import yaml
 
 CONFIG_DIR = Path.home() / ".config" / "yafyaf-tui"
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
+TOKEN_FILE = CONFIG_DIR / "token"
 DEFAULT_THEME = "onedark"
 
 
 @dataclass
 class Config:
-    """Application configuration with sensible defaults."""
+    """Settings the user edits by hand; secrets live in TokenStore."""
 
     theme: str = DEFAULT_THEME
     url: str = ""
-    token: str = ""
     # Why the config file could not be used; the UI shows these
     warnings: list[str] = field(default_factory=list)
 
     @property
     def is_complete(self) -> bool:
-        return bool(self.url and self.token)
+        return bool(self.url)
 
 
 def load_config(path: Path = CONFIG_FILE) -> Config:
@@ -41,9 +42,29 @@ def load_config(path: Path = CONFIG_FILE) -> Config:
 
     config.theme = str(data.get("theme") or DEFAULT_THEME)
     config.url = str(data.get("url") or "").rstrip("/")
-    config.token = str(data.get("token") or "")
     if not config.url:
         config.warnings.append("Missing setting: url")
-    if not config.token:
-        config.warnings.append("Missing setting: token")
     return config
+
+
+class TokenStore:
+    """The API token, kept in its own user-only file so config.yaml holds no secrets."""
+
+    def __init__(self, path: Path = TOKEN_FILE) -> None:
+        self.path = path
+
+    def load(self) -> str:
+        try:
+            return self.path.read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            return ""
+
+    def save(self, token: str) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(token + "\n")
+        os.chmod(self.path, 0o600)
+
+    def clear(self) -> None:
+        self.path.unlink(missing_ok=True)
