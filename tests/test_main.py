@@ -15,7 +15,7 @@ from yafyaf_tui.__main__ import main
 from yafyaf_tui.api import ApiConnectionError, AuthenticationError, Session, User, Yaf, YafPage
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.config import DEFAULT_URL, Config, TokenStore
-from yafyaf_tui.screens import HelpScreen, LoginScreen
+from yafyaf_tui.screens import HelpScreen, LoginScreen, YafDetailScreen
 from yafyaf_tui.widgets import YafsTable, YafsView
 
 ME = User(id="abc", email="me@example.com")
@@ -90,10 +90,12 @@ class AppTest(unittest.TestCase):
                     expected = {
                         shortcut.key
                         for section in shortcuts.SECTIONS
-                        for shortcut in shortcuts.for_section(section, YafsView.BINDINGS, YafsTable.BINDINGS, app.BINDINGS)
+                        for shortcut in shortcuts.for_section(
+                            section, YafsView.BINDINGS, YafsTable.BINDINGS, YafDetailScreen.BINDINGS, app.BINDINGS
+                        )
                     }
                     self.assertEqual(keys, expected)
-                    self.assertTrue({"?", "q", "/", "r", "j", "k"} <= keys)
+                    self.assertTrue({"?", "q", "/", "r", "j", "k", "enter", "escape"} <= keys)
                     await pilot.press("escape")
                     await pilot.pause()
                     self.assertNotIsInstance(app.screen, HelpScreen)
@@ -262,6 +264,26 @@ class YafsViewTest(unittest.TestCase):
                     await pilot.press("j")
                     await settle(app, pilot)
                     self.assertEqual(list_yafs.call_count, 2)
+
+        asyncio.run(exercise())
+
+    def test_enter_opens_the_yaf_and_escape_comes_back(self) -> None:
+        async def exercise() -> None:
+            app = self._app()
+            with patched_me(), patched_list():
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    await pilot.press("j", "enter")
+                    await settle(app, pilot)
+                    self.assertIsInstance(app.screen, YafDetailScreen)
+                    self.assertEqual(app.screen.yaf, YAFS[1])
+                    self.assertEqual(app.screen.query_one("#yaf-detail-date", Static).content, "2026-09-12")
+                    self.assertIn("Second yaf", str(app.screen.query_one("#yaf-detail-content").source))
+
+                    await pilot.press("escape")
+                    await settle(app, pilot)
+                    self.assertNotIsInstance(app.screen, YafDetailScreen)
+                    self.assertTrue(app.query_one(YafsTable).has_focus)
 
         asyncio.run(exercise())
 

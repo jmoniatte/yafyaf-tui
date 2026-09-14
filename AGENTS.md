@@ -38,7 +38,7 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
     api/client.py       # Blocking urllib client for /api/; call it via asyncio.to_thread
     shortcuts.py        # Help screen contents, read off the bindings
     widgets/            # Textual widgets (yafs_view.py: search box + list, paged from the API)
-    screens/            # Textual screens
+    screens/            # Textual screens (help, login, yaf detail rendered as markdown)
     styles/             # base.tcss (layout) + themes/*.tcss (colors)
 ```
 

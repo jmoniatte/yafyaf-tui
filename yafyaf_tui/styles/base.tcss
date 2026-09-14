@@ -113,6 +113,56 @@ ModalScreen {
     margin-top: 1;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   YAF DETAIL
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#yaf-detail-meta {
+    height: 1;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+#yaf-detail-date {
+    width: auto;
+    color: $yellow;
+    text-style: bold;
+}
+
+#yaf-detail-edited {
+    width: 1fr;
+    color: $comment;
+    text-align: right;
+}
+
+#yaf-detail-body {
+    height: 1fr;
+    padding: 0 1;
+    scrollbar-size-vertical: 1;
+}
+
+#yaf-detail-body:focus {
+    border: none;
+}
+
+#yaf-detail-content {
+    background: transparent;
+    padding: 0;
+    margin: 0;
+}
+
+#yaf-detail-content MarkdownH1,
+#yaf-detail-content MarkdownH2,
+#yaf-detail-content MarkdownH3 {
+    text-align: left;
+    content-align: left middle;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0 0 1 0;
+    color: $blue;
+}
+
 #status-line {
     dock: bottom;
     height: 1;

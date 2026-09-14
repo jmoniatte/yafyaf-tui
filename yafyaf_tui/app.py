@@ -1,16 +1,16 @@
 import asyncio
 from pathlib import Path
 
-from textual import work
+from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import Static
 
 from .api import ApiConnectionError, AuthenticationError, Session, User, YafyafClient
 from .config import DEFAULT_URL, Config, TokenStore, load_config
-from .screens import HelpScreen, LoginScreen
+from .screens import HelpScreen, LoginScreen, YafDetailScreen
 from .shortcuts import GENERAL
-from .widgets import AppHeader, YafsView
+from .widgets import AppHeader, YafOpened, YafsView
 
 STYLES_DIR = Path(__file__).parent / "styles"
 
@@ -94,6 +94,10 @@ class YafyafApp(App):
 
     def _set_status(self, text: str) -> None:
         self.query_one("#status-line", Static).update(text)
+
+    @on(YafOpened)
+    def _open_yaf(self, event: YafOpened) -> None:
+        self.push_screen(YafDetailScreen(event.yaf))
 
     def action_help(self) -> None:
         self.push_screen(HelpScreen())

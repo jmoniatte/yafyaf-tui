@@ -4,6 +4,7 @@ from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
+from textual.message import Message
 from textual.widgets import DataTable, Input, Static
 
 from ..api import ApiConnectionError, ApiError, Yaf, YafPage, YafyafClient
@@ -14,9 +15,18 @@ class YafsTable(DataTable):
     """The list of yafs; rows are keyed by yaf id."""
 
     BINDINGS = [
+        Binding("enter", "select_cursor", "Open yaf", show=False, group=ACTIONS),
         Binding("j", "cursor_down", "Move down", show=False, group=GENERAL),
         Binding("k", "cursor_up", "Move up", show=False, group=GENERAL),
     ]
+
+
+class YafOpened(Message):
+    """The user asked to see one yaf in full."""
+
+    def __init__(self, yaf: Yaf) -> None:
+        super().__init__()
+        self.yaf = yaf
 
 
 class YafsView(Vertical):
@@ -73,6 +83,11 @@ class YafsView(Vertical):
         if event.key == "escape" and self.query_one("#search", Input).has_focus:
             event.stop()
             self.query_one(YafsTable).focus()
+
+    @on(DataTable.RowSelected)
+    def _open_selected(self, event: DataTable.RowSelected) -> None:
+        if event.cursor_row < len(self.yafs):
+            self.post_message(YafOpened(self.yafs[event.cursor_row]))
 
     @on(DataTable.RowHighlighted)
     def _maybe_fetch_more(self, event: DataTable.RowHighlighted) -> None:

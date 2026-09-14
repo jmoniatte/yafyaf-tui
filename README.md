@@ -29,7 +29,8 @@ Delete that file to log out; the TUI will ask for credentials again.
 
 The list shows your yafs newest first and loads more as you scroll. Press `/` to search
 (full-text, any word matches), `Enter` to run the search, `Escape` to go back to the list,
-`r` to reload, `?` for all shortcuts, and `q` to quit.
+`Enter` to open a yaf, `Escape` to come back, `r` to reload, `?` for all shortcuts, and
+`q` to quit.
 
 ## Configuration
 
