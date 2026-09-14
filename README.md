@@ -27,7 +27,9 @@ On first start the TUI asks for your YafYaf email and password, exchanges them f
 token, and saves the token to `~/.config/yafyaf-tui/tokens/yafyaf.com` (readable by you only).
 Delete that file to log out; the TUI will ask for credentials again.
 
-Press `?` for the keyboard shortcuts and `q` to quit.
+The list shows your yafs newest first and loads more as you scroll. Press `/` to search
+(full-text, any word matches), `Enter` to run the search, `Escape` to go back to the list,
+`r` to reload, `?` for all shortcuts, and `q` to quit.
 
 ## Configuration
 

@@ -3,10 +3,23 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from datetime import date, datetime, timezone
+from urllib.parse import parse_qs, urlsplit
+
 from yafyaf_tui import __version__
 from yafyaf_tui.api import ApiConnectionError, ApiError, AuthenticationError, YafyafClient
 
 USER = {"id": "abc", "email": "me@example.com", "locale": "en"}
+YAFS = [
+    {
+        "id": "y1",
+        "content": "First yaf\nmore",
+        "date": "2026-09-13",
+        "created_at": "2026-09-13T10:00:00.000Z",
+        "updated_at": "2026-09-13T11:00:00.000Z",
+    },
+    {"id": "y2", "content": "Second yaf", "date": "2026-09-12", "created_at": None, "updated_at": None},
+]
 
 
 class FakeYafyaf(BaseHTTPRequestHandler):
@@ -52,6 +65,14 @@ class FakeYafyaf(BaseHTTPRequestHandler):
             return self._reply(401, {"error": "Authentication is required and has failed"})
         if self.path == "/api/users/me":
             return self._reply(200, {"user": USER})
+        parts = urlsplit(self.path)
+        if parts.path == "/api/yafs":
+            query = parse_qs(parts.query)
+            page = int(query.get("page", ["1"])[0])
+            next_page = None
+            if page == 1:
+                next_page = {"params": {"page": 2, "sort": "date desc"}, "url": "http://x/api/yafs?page=2"}
+            return self._reply(200, {"yafs": YAFS, "meta": {"records_count": 4, "next_page": next_page}})
         if self.path == "/api/invalid":
             return self._reply(422, {"errors": {"title": "can't be blank", "body": "is too long"}})
         self._reply(404, {"error": "Record not found"})
@@ -144,3 +165,25 @@ class ClientTest(unittest.TestCase):
         with self.assertRaises(ApiConnectionError) as raised:
             client.login("me@example.com", "secret")
         self.assertIn("Cannot reach http://127.0.0.1:1", str(raised.exception))
+
+    def test_list_yafs_sends_search_params_and_parses_the_page(self) -> None:
+        client = YafyafClient(self.base_url, token="good-token")
+        page = client.list_yafs("hello world", page=1)
+
+        sent = FakeYafyaf.requests[0]
+        parts = urlsplit(sent["path"])
+        self.assertEqual(parts.path, "/api/yafs")
+        self.assertEqual(parse_qs(parts.query), {"page": ["1"], "sort": ["date desc"], "q": ["hello world"]})
+
+        self.assertEqual(page.records_count, 4)
+        self.assertEqual(page.next_page, {"page": 2, "sort": "date desc"})
+        self.assertEqual([yaf.id for yaf in page.yafs], ["y1", "y2"])
+        first, second = page.yafs
+        self.assertEqual(first.date, date(2026, 9, 13))
+        self.assertEqual(first.summary, "First yaf")
+        self.assertEqual(first.updated_at, datetime(2026, 9, 13, 11, tzinfo=timezone.utc))
+        self.assertIsNone(second.created_at)
+
+        last = client.list_yafs(page=2)
+        self.assertNotIn("q=", FakeYafyaf.requests[1]["path"])
+        self.assertIsNone(last.next_page)

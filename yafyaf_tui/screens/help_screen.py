@@ -6,6 +6,7 @@ from textual.widgets import Static
 from .. import REPOSITORY_URL, __version__
 from .. import shortcuts as shortcut_help
 from ..widgets.web_link import WebLink
+from ..widgets.yafs_view import YafsTable, YafsView
 
 
 class HelpScreen(ModalScreen):
@@ -17,8 +18,9 @@ class HelpScreen(ModalScreen):
 
     def _sections(self) -> list[tuple[str, tuple[shortcut_help.Shortcut, ...]]]:
         """Read the shortcuts off the bindings, so the two cannot drift."""
+        sources = (YafsView.BINDINGS, YafsTable.BINDINGS, self.app.BINDINGS)
         return [
-            (section, shortcut_help.for_section(section, self.app.BINDINGS))
+            (section, shortcut_help.for_section(section, *sources))
             for section in shortcut_help.SECTIONS
         ]
 

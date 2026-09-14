@@ -61,11 +61,62 @@ ModalScreen {
    MAIN AREA
    ═══════════════════════════════════════════════════════════════════════ */
 
-#main {
+#yafs-view {
     padding: 0 1;
+    height: 1fr;
 }
 
-#main-placeholder {
+#yafs-view #search {
+    width: 100%;
+    background: $bg;
+    color: $fg;
+    border: solid $gutter;
+    margin-bottom: 1;
+}
+
+#yafs-view #search:focus {
+    border: solid $blue;
+}
+
+#yafs-table {
+    height: 1fr;
+    background: transparent;
+    scrollbar-size-vertical: 1;
+    overflow-x: hidden;
+}
+
+#yafs-table > .datatable--header {
+    background: transparent;
+    color: $comment;
+    text-style: none;
+}
+
+#yafs-table > .datatable--header-hover {
+    background: transparent;
+    color: $comment;
+    text-style: none;
+}
+
+#yafs-table > .datatable--cursor {
+    background: $bg-light;
+    color: auto;
+    text-style: none;
+}
+
+#yafs-table > .datatable--hover {
+    background: transparent;
+}
+
+#yafs-status {
+    height: 1;
+    color: $comment;
+    margin-top: 1;
+}
+
+#status-line {
+    dock: bottom;
+    height: 1;
+    padding: 0 1;
     color: $comment;
 }
 

@@ -4,14 +4,13 @@ from pathlib import Path
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
 from textual.widgets import Static
 
 from .api import ApiConnectionError, AuthenticationError, Session, User, YafyafClient
 from .config import DEFAULT_URL, Config, TokenStore, load_config
 from .screens import HelpScreen, LoginScreen
 from .shortcuts import GENERAL
-from .widgets import AppHeader
+from .widgets import AppHeader, YafsView
 
 STYLES_DIR = Path(__file__).parent / "styles"
 
@@ -51,8 +50,8 @@ class YafyafApp(App):
 
     def compose(self) -> ComposeResult:
         yield AppHeader(self.url)
-        with Vertical(id="main"):
-            yield Static("", id="main-placeholder")
+        yield YafsView(self.client)
+        yield Static("", id="status-line")
 
     def on_mount(self) -> None:
         for warning in self.config.warnings:
@@ -75,7 +74,7 @@ class YafyafApp(App):
         except ApiConnectionError as error:
             self._set_status(str(error))
             return
-        self._set_status(f"Signed in as {self.user.email}")
+        self._signed_in_as(self.user)
 
     def _ask_login(self, message: str = "") -> None:
         self.push_screen(LoginScreen(self.client, message), self._signed_in)
@@ -87,10 +86,14 @@ class YafyafApp(App):
         self.user = session.user
         self.client.token = session.token
         self.token_store.save(session.token)
-        self._set_status(f"Signed in as {self.user.email}")
+        self._signed_in_as(session.user)
+
+    def _signed_in_as(self, user: User) -> None:
+        self._set_status(f"Signed in as {user.email}")
+        self.query_one(YafsView).load()
 
     def _set_status(self, text: str) -> None:
-        self.query_one("#main-placeholder", Static).update(text)
+        self.query_one("#status-line", Static).update(text)
 
     def action_help(self) -> None:
         self.push_screen(HelpScreen())
