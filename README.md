@@ -20,17 +20,45 @@ uv tool install ./yafyaf-tui
 
 ```bash
 yaf
+yaf new
 yaf --version
 ```
 
 On first start the TUI asks for your YafYaf email and password, exchanges them for an API
 token, and saves the token to `~/.config/yafyaf-tui/tokens/yafyaf.com` (readable by you only).
-Delete that file to log out; the TUI will ask for credentials again.
+To log out, press Sign out at the top right; the TUI forgets the token and asks for
+credentials again.
 
 The list shows your yafs newest first and loads more as you scroll. Press `/` to search
 (full-text, any word matches), `Enter` to run the search, `Escape` to go back to the list,
-`Enter` to open a yaf, `Escape` to come back, `r` to reload, `?` for all shortcuts, and
-`q` to quit.
+`Enter` to edit a yaf, `n` (or the New Yaf button) to write a new one, `r` to reload, `?` for
+all shortcuts, and `q` to quit.
+
+A yaf opens as a markdown file in `$EDITOR` (`vi` if unset), with its date in front matter:
+
+```markdown
+---
+date: 2026-09-14
+---
+
+The yaf's content
+```
+
+Change the date there to move the yaf to another day. The front matter only exists in the
+file; the yaf's content on the server never includes it. Save and quit to store your changes;
+quit without changes, or exit with an error (`:cq` in vim), to leave the yaf as it was. If the
+save fails or the date is not valid, the error names the temp file that still holds your edit.
+
+To delete a yaf, clear its content (the front matter can stay) and save and quit. The TUI asks
+for confirmation first; Cancel has focus, so pressing Enter keeps the yaf.
+
+The TUI fetches the yaf again before opening it, so you always edit the latest copy. If it was
+deleted in the web app, the list refreshes instead. If it is deleted while the editor is open,
+your edit is saved as a new yaf.
+
+`yaf new` skips the list: it opens a file with today's date in front matter and, once you save
+and quit, creates the yaf and returns to the shell. Leave the content empty to cancel. Log in
+with `yaf` first.
 
 ## Configuration
 

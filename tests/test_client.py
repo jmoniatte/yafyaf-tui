@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 from urllib.parse import parse_qs, urlsplit
 
 from yafyaf_tui import __version__
-from yafyaf_tui.api import ApiConnectionError, ApiError, AuthenticationError, YafyafClient
+from yafyaf_tui.api import ApiConnectionError, ApiError, AuthenticationError, NotFoundError, YafyafClient
 
 USER = {"id": "abc", "email": "me@example.com", "locale": "en"}
 YAFS = [
@@ -52,6 +52,10 @@ class FakeYafyaf(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         entry = self._record()
+        if self.path == "/api/yafs":
+            if not self._authorized(entry):
+                return self._reply(401, {"error": "Authentication is required and has failed"})
+            return self._reply(200, {"yaf": {**YAFS[1], "id": "y3", **entry["body"]["yaf"]}})
         if self.path != "/api/auth_tokens":
             return self._reply(404, {"error": "Record not found"})
         user = (entry["body"] or {}).get("user", {})
@@ -73,14 +77,26 @@ class FakeYafyaf(BaseHTTPRequestHandler):
             if page == 1:
                 next_page = {"params": {"page": 2, "sort": "date desc"}, "url": "http://x/api/yafs?page=2"}
             return self._reply(200, {"yafs": YAFS, "meta": {"records_count": 4, "next_page": next_page}})
+        if self.path == "/api/yafs/y1":
+            return self._reply(200, {"yaf": YAFS[0]})
         if self.path == "/api/invalid":
             return self._reply(422, {"errors": {"title": "can't be blank", "body": "is too long"}})
         self._reply(404, {"error": "Record not found"})
+
+    def do_PATCH(self) -> None:
+        entry = self._record()
+        if not self._authorized(entry):
+            return self._reply(401, {"error": "Authentication is required and has failed"})
+        if self.path != "/api/yafs/y1":
+            return self._reply(404, {"error": "Record not found"})
+        self._reply(200, {"yaf": {**YAFS[0], **entry["body"]["yaf"]}})
 
     def do_DELETE(self) -> None:
         entry = self._record()
         if not self._authorized(entry):
             return self._reply(401, {"error": "Authentication is required and has failed"})
+        if self.path == "/api/yafs/gone":
+            return self._reply(404, {"error": "Record not found"})
         self._reply(204)
 
     def log_message(self, *args) -> None:
@@ -187,3 +203,44 @@ class ClientTest(unittest.TestCase):
         last = client.list_yafs(page=2)
         self.assertNotIn("q=", FakeYafyaf.requests[1]["path"])
         self.assertIsNone(last.next_page)
+
+    def test_get_yaf_returns_the_yaf_or_raises_not_found(self) -> None:
+        client = YafyafClient(self.base_url, token="good-token")
+        yaf = client.get_yaf("y1")
+        self.assertEqual((yaf.id, yaf.content), ("y1", "First yaf\nmore"))
+        self.assertEqual(FakeYafyaf.requests[0]["path"], "/api/yafs/y1")
+
+        with self.assertRaises(NotFoundError) as raised:
+            client.get_yaf("gone")
+        self.assertEqual((raised.exception.status, str(raised.exception)), (404, "Record not found"))
+
+    def test_delete_yaf_sends_delete_and_raises_not_found_when_gone(self) -> None:
+        client = YafyafClient(self.base_url, token="good-token")
+        self.assertIsNone(client.delete_yaf("y1"))
+        sent = FakeYafyaf.requests[0]
+        self.assertEqual((sent["method"], sent["path"]), ("DELETE", "/api/yafs/y1"))
+
+        with self.assertRaises(NotFoundError):
+            client.delete_yaf("gone")
+
+    def test_create_yaf_sends_content_and_date_and_returns_the_new_yaf(self) -> None:
+        client = YafyafClient(self.base_url, token="good-token")
+        created = client.create_yaf("New yaf", date(2026, 9, 14))
+
+        sent = FakeYafyaf.requests[0]
+        self.assertEqual((sent["method"], sent["path"]), ("POST", "/api/yafs"))
+        self.assertEqual(sent["body"], {"yaf": {"content": "New yaf", "date": "2026-09-14"}})
+        self.assertEqual((created.id, created.content, created.date), ("y3", "New yaf", date(2026, 9, 14)))
+
+    def test_update_yaf_sends_the_content_and_returns_the_saved_yaf(self) -> None:
+        client = YafyafClient(self.base_url, token="good-token")
+        saved = client.update_yaf("y1", "Edited yaf", date(2026, 9, 10))
+
+        sent = FakeYafyaf.requests[0]
+        self.assertEqual((sent["method"], sent["path"]), ("PATCH", "/api/yafs/y1"))
+        self.assertEqual(sent["body"], {"yaf": {"content": "Edited yaf", "date": "2026-09-10"}})
+        self.assertEqual((saved.id, saved.content, saved.date), ("y1", "Edited yaf", date(2026, 9, 10)))
+
+        with self.assertRaises(NotFoundError) as raised:
+            client.update_yaf("missing", "x", date(2026, 9, 10))
+        self.assertEqual(raised.exception.status, 404)

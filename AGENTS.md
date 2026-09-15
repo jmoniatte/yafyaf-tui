@@ -34,11 +34,13 @@ There is no pytest. `ruff` is pinned in the `dev` dependency group, so use
 yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
   yafyaf_tui/           # Python package
     app.py              # Main Textual app
+    commands.py         # Shell commands that skip the TUI (yaf new)
     config.py           # Server URL resolution, optional config.yaml, TokenStore
+    editor.py           # Draft: a yaf as a temp .md file (date in front matter), edited in $EDITOR
     api/client.py       # Blocking urllib client for /api/; call it via asyncio.to_thread
     shortcuts.py        # Help screen contents, read off the bindings
     widgets/            # Textual widgets (yafs_view.py: search box + list, paged from the API)
-    screens/            # Textual screens (help, login, yaf detail rendered as markdown)
+    screens/            # Textual screens (help, login)
     styles/             # base.tcss (layout) + themes/*.tcss (colors)
 ```
 

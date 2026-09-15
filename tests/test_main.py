@@ -1,6 +1,8 @@
 import asyncio
 import contextlib
 import io
+import shlex
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,15 +10,26 @@ from unittest.mock import patch
 
 from datetime import date
 
-from textual.widgets import Input, Static
+from textual.widgets import Button, Input, Static
 
 from yafyaf_tui import __version__, shortcuts
 from yafyaf_tui.__main__ import main
-from yafyaf_tui.api import ApiConnectionError, AuthenticationError, Session, User, Yaf, YafPage
+from yafyaf_tui.api import (
+    ApiConnectionError,
+    ApiError,
+    AuthenticationError,
+    NotFoundError,
+    Session,
+    User,
+    Yaf,
+    YafPage,
+)
 from yafyaf_tui.app import YafyafApp
+from yafyaf_tui.commands import new_yaf
 from yafyaf_tui.config import DEFAULT_URL, Config, TokenStore
-from yafyaf_tui.screens import HelpScreen, LoginScreen, YafDetailScreen
-from yafyaf_tui.widgets import YafsTable, YafsView
+from yafyaf_tui.screens import ConfirmDialog, HelpScreen, LoginScreen
+from yafyaf_tui.widgets import HeaderNotification, YafsTable, YafsView
+from yafyaf_tui.widgets.yafs_view import DATE_WIDTH, summary_text
 
 ME = User(id="abc", email="me@example.com")
 YAFS = (
@@ -24,6 +37,27 @@ YAFS = (
     Yaf(id="y2", content="Second yaf", date=date(2026, 9, 12)),
 )
 ONE_PAGE = YafPage(yafs=YAFS, records_count=2)
+
+
+@contextlib.contextmanager
+def patched_editor(editor: str):
+    """Run editor in place of $EDITOR; yields how many times the app resumed after it."""
+    resumed = []
+
+    @contextlib.contextmanager
+    def suspend(_app):
+        # Like Textual's suspend, the TUI only comes back if the block does not raise
+        yield
+        resumed.append(True)
+
+    # The headless test driver cannot suspend, and these editors do not need the terminal
+    with patch.dict("os.environ", {"EDITOR": editor}), patch("yafyaf_tui.app.YafyafApp.suspend", suspend):
+        yield resumed
+
+
+def python_editor(code: str) -> str:
+    """An $EDITOR command that runs Python on the draft, whose path is sys.argv[1]."""
+    return shlex.join([sys.executable, "-c", code])
 
 
 def patched_me():
@@ -36,12 +70,28 @@ def patched_list(*pages: YafPage):
     return patch("yafyaf_tui.api.client.YafyafClient.list_yafs", side_effect=list(pages))
 
 
+def patched_get(*yafs: Yaf, error: Exception | None = None):
+    """The server's copy of each yaf: the given ones, else the list's."""
+    by_id = {yaf.id: yaf for yaf in (*YAFS, *yafs)}
+    return patch("yafyaf_tui.api.client.YafyafClient.get_yaf", side_effect=error or by_id.__getitem__)
+
+
+def row_text(table: YafsTable, row: int) -> list[str]:
+    return [str(cell) for cell in table.get_row_at(row)]
+
+
+def header_message(app: YafyafApp) -> str:
+    notification = app.screen.query_one(HeaderNotification)
+    return notification.render().plain if notification.display else ""
+
+
 async def settle(app: YafyafApp, pilot) -> None:
-    """Let every worker on every screen finish, then let the UI catch up."""
-    await pilot.pause()
-    await app.workers.wait_for_complete()
-    for screen in app.screen_stack:
-        await screen.workers.wait_for_complete()
+    """Let workers finish, including ones started by callbacks of earlier workers, then let the UI catch up."""
+    while True:
+        await pilot.pause()
+        if not any(worker.is_running for worker in app.workers):
+            break
+        await app.workers.wait_for_complete()
     await pilot.pause()
 
 
@@ -63,6 +113,100 @@ class MainTest(unittest.TestCase):
         urls = [call.kwargs["url"] for call in app_class.call_args_list]
         self.assertEqual(urls, [DEFAULT_URL, "http://localhost:3000", "http://localhost:3100"])
         self.assertEqual(app_class.return_value.run.call_count, 3)
+
+    def test_new_command_creates_a_yaf_without_starting_the_tui(self) -> None:
+        with (
+            patch("yafyaf_tui.__main__.YafyafApp") as app_class,
+            patch("yafyaf_tui.__main__.new_yaf", return_value=0) as command,
+            self.assertRaises(SystemExit) as raised,
+        ):
+            main(["new", "--url", "http://localhost:3100"])
+        self.assertEqual(raised.exception.code, 0)
+        self.assertEqual(command.call_args.args[0], "http://localhost:3100")
+        self.assertEqual(command.call_args.args[1].path.name, "localhost_3100")
+        app_class.assert_not_called()
+
+
+class NewYafTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.store = TokenStore(Path(self.tmp.name) / "token")
+        self.store.save("good")
+        self.record = Path(self.tmp.name) / "draft-path"
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _run(self, text: str, **create) -> tuple[int, str, str, Path | None]:
+        """Run `yaf new` with an editor that writes text into the draft and records its path."""
+        script = (
+            "import pathlib, sys; "
+            f"pathlib.Path({str(self.record)!r}).write_text(sys.argv[1]); "
+            f"pathlib.Path(sys.argv[1]).write_text({text!r})"
+        )
+        out, err = io.StringIO(), io.StringIO()
+        with (
+            patch.dict("os.environ", {"EDITOR": python_editor(script)}),
+            patch("yafyaf_tui.api.client.YafyafClient.create_yaf", **create) as self.create_yaf,
+            contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
+        ):
+            code = new_yaf("http://localhost:3000", self.store, date(2026, 9, 14))
+        draft = Path(self.record.read_text()) if self.record.exists() else None
+        return code, out.getvalue(), err.getvalue(), draft
+
+    def test_new_yaf_is_created_from_the_editor_unless_left_empty(self) -> None:
+        saved = Yaf(id="y3", content="A new yaf", date=date(2026, 9, 14))
+        code, out, _, draft = self._run("A new yaf\n", return_value=saved)
+        self.assertEqual(code, 0)
+        self.create_yaf.assert_called_once_with("A new yaf", date(2026, 9, 14))
+        self.assertEqual(out.strip(), "Saved yaf for 2026-09-14.")
+        self.assertRegex(draft.name, r"^yaf-new-\w+\.md$")
+        self.assertFalse(draft.exists())
+
+        # The editor starts from front matter holding the given day, and a changed date is used
+        code, out, _, draft = self._run("---\ndate: 2026-09-13\n---\n\nYesterday\n", return_value=saved)
+        self.create_yaf.assert_called_once_with("Yesterday", date(2026, 9, 13))
+        self.assertEqual(out.strip(), "Saved yaf for 2026-09-13.")
+
+        code, out, _, draft = self._run("---\ndate: 2026-09-14\n---\n\n")
+        self.assertEqual(code, 0)
+        self.create_yaf.assert_not_called()
+        self.assertEqual(out.strip(), "Empty yaf, nothing saved.")
+        self.assertFalse(draft.exists())
+
+    def test_failures_keep_the_draft_and_exit_with_an_error(self) -> None:
+        code, _, err, draft = self._run("Lost?", side_effect=ApiConnectionError("Cannot reach it"))
+        self.assertEqual(code, 1)
+        self.assertIn(f"Cannot reach it\nYour yaf is kept in {draft}", err)
+        self.assertEqual(draft.read_text(), "Lost?")
+        draft.unlink()
+
+        code, _, err, draft = self._run("---\ndate: soon\n---\nLost?")
+        self.assertEqual(code, 1)
+        self.create_yaf.assert_not_called()
+        self.assertIn(f"'soon' is not a date like 2026-09-14\nYour yaf is kept in {draft}", err)
+        draft.unlink()
+
+        code, _, err, draft = self._run("Lost?", side_effect=AuthenticationError(401, "rejected"))
+        self.assertEqual(code, 1)
+        self.assertIn("Run yaf to log in again", err)
+        self.assertTrue(draft.exists())
+        self.assertEqual(self.store.load(), "")
+        draft.unlink()
+
+        # The rejected token was cleared, so the next run stops before opening the editor
+        self.record.unlink()
+        code, _, err, draft = self._run("Unused")
+        self.assertEqual(code, 1)
+        self.assertIn("Run yaf to log in first", err)
+        self.assertIsNone(draft)
+
+        self.store.save("good")
+        err = io.StringIO()
+        with patch.dict("os.environ", {"EDITOR": python_editor("raise SystemExit(3)")}), contextlib.redirect_stderr(err):
+            self.assertEqual(new_yaf("http://localhost:3000", self.store), 1)
+        self.assertIn("exited with status 3", err.getvalue())
 
 
 class AppTest(unittest.TestCase):
@@ -91,11 +235,11 @@ class AppTest(unittest.TestCase):
                         shortcut.key
                         for section in shortcuts.SECTIONS
                         for shortcut in shortcuts.for_section(
-                            section, YafsView.BINDINGS, YafsTable.BINDINGS, YafDetailScreen.BINDINGS, app.BINDINGS
+                            section, YafsView.BINDINGS, YafsTable.BINDINGS, app.BINDINGS
                         )
                     }
                     self.assertEqual(keys, expected)
-                    self.assertTrue({"?", "q", "/", "r", "j", "k", "enter", "escape"} <= keys)
+                    self.assertTrue({"?", "q", "n", "/", "r", "j", "k", "enter"} <= keys)
                     await pilot.press("escape")
                     await pilot.pause()
                     self.assertNotIsInstance(app.screen, HelpScreen)
@@ -126,8 +270,18 @@ class AppTest(unittest.TestCase):
             with patched_me(), patched_list():
                 async with app.run_test(size=(100, 34), notifications=True) as pilot:
                     await settle(app, pilot)
-                    messages = [toast.message for toast in app._notifications]
-                    self.assertEqual(messages, config.warnings)
+                    notification = app.screen.query_one(HeaderNotification)
+                    self.assertEqual(header_message(app), config.warnings[0])
+                    self.assertTrue(notification.has_class("-warning"))
+                    # Shown in the header, between the title and the server URL, instead of as a toast
+                    self.assertEqual(list(app.screen.query("Toast")), [])
+                    header = app.query_one("#app-header")
+                    self.assertIs(notification.parent, header)
+                    self.assertGreater(notification.region.x, app.query_one("#app-title-group").region.right)
+                    self.assertLess(notification.region.right, app.query_one("#app-url").region.x)
+
+                    notification.clear_notification()
+                    self.assertEqual(header_message(app), "")
 
         asyncio.run(exercise())
 
@@ -141,11 +295,17 @@ class AppTest(unittest.TestCase):
                     me.assert_called_once()
                     list_yafs.assert_called_once_with("", 1)
                     self.assertNotIsInstance(app.screen, LoginScreen)
-                    self.assertEqual(app.query_one("#status-line", Static).content, "Signed in as me@example.com")
+                    self.assertTrue(app.query_one("#btn-sign-out", Button).display)
                     table = app.query_one(YafsTable)
                     self.assertEqual(table.row_count, 2)
-                    self.assertEqual(table.get_row_at(0), ["2026-09-13", "First yaf"])
+                    self.assertEqual(row_text(table, 0), ["2026-09-13", "First yaf"])
+                    date_cell = table.get_row_at(0)[0]
+                    self.assertEqual(str(date_cell.style), "#5c6370")
                     self.assertEqual(app.query_one("#yafs-status", Static).content, "2 yafs")
+                    # The count shares the column header line, right-aligned
+                    status = app.query_one("#yafs-status", Static)
+                    self.assertEqual(status.region.y, app.query_one("#yafs-header-summary").region.y)
+                    self.assertEqual(status.region.right, table.region.right)
 
         asyncio.run(exercise())
 
@@ -178,8 +338,48 @@ class AppTest(unittest.TestCase):
                     self.assertNotIsInstance(app.screen, LoginScreen)
                     self.assertEqual(self.store.load(), "fresh")
                     self.assertEqual(app.client.token, "fresh")
-                    self.assertEqual(app.query_one("#status-line", Static).content, "Signed in as me@example.com")
+                    self.assertTrue(app.query_one("#btn-sign-out", Button).display)
                     self.assertEqual(app.query_one(YafsTable).row_count, 2)
+
+        asyncio.run(exercise())
+
+    def test_sign_out_button_confirms_then_forgets_the_token_and_asks_login(self) -> None:
+        async def exercise() -> None:
+            self.store.save("good")
+            app = self._app()
+            unreachable = ApiConnectionError("Cannot reach http://localhost:3000")
+            logout = patch("yafyaf_tui.api.client.YafyafClient.logout", side_effect=unreachable)
+            with patched_me(), patched_list(), logout as revoke:
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    sign_out = app.query_one("#btn-sign-out", Button)
+                    self.assertIs(sign_out.parent, app.query_one("#app-header"))
+                    self.assertEqual(sign_out.region.right, app.query_one("#app-header").content_region.right)
+
+                    await pilot.click("#btn-sign-out")
+                    await settle(app, pilot)
+                    self.assertIsInstance(app.screen, ConfirmDialog)
+                    message = app.screen.query_one("#dialog-message", Static).content
+                    self.assertEqual(message, "You are signed in as me@example.com")
+                    await pilot.press("escape")
+                    await settle(app, pilot)
+                    revoke.assert_not_called()
+                    self.assertEqual(self.store.load(), "good")
+                    self.assertTrue(app.query_one(YafsTable).has_focus)
+
+                    await pilot.click("#btn-sign-out")
+                    await settle(app, pilot)
+                    await pilot.click("#confirm-btn")
+                    await settle(app, pilot)
+                    # The server could not revoke the token, but it is forgotten locally all the same
+                    revoke.assert_called_once()
+                    self.assertEqual(self.store.load(), "")
+                    self.assertEqual(app.client.token, "")
+                    self.assertIsNone(app.user)
+                    self.assertIsInstance(app.screen, LoginScreen)
+                    self.assertFalse(sign_out.display)
+                    self.assertEqual(app.query_one(YafsTable).row_count, 0)
+                    self.assertEqual(app.query_one("#yafs-status", Static).content, "")
 
         asyncio.run(exercise())
 
@@ -248,7 +448,7 @@ class YafsViewTest(unittest.TestCase):
         async def exercise() -> None:
             app = self._app()
             first = YafPage(yafs=YAFS, records_count=3, next_page={"page": 2, "sort": "date desc"})
-            second = YafPage(yafs=(Yaf(id="y3", content="Third", date=date(2026, 9, 11)),), records_count=3)
+            second = YafPage(yafs=(Yaf(id="y3", content="Third [link](http://x) [b]", date=date(2026, 9, 11)),), records_count=3)
             with patched_me(), patched_list(first, second) as list_yafs:
                 async with app.run_test(size=(100, 34)) as pilot:
                     await settle(app, pilot)
@@ -259,6 +459,12 @@ class YafsViewTest(unittest.TestCase):
                     await settle(app, pilot)
                     self.assertEqual(list_yafs.call_args_list[-1].args, ("", 2))
                     self.assertEqual(view.query_one(YafsTable).row_count, 3)
+                    # A markdown link shows as its label, pointing at the URL; other brackets are not markup
+                    summary = view.query_one(YafsTable).get_row_at(2)[1]
+                    self.assertEqual(summary.plain, "Third link [b]")
+                    link_span = next(span for span in summary.spans if span.style.link)
+                    self.assertEqual(summary.plain[link_span.start : link_span.end], "link")
+                    self.assertEqual((link_span.style.link, str(link_span.style.color.name)), ("http://x", "#61afef"))
                     self.assertEqual(view.query_one("#yafs-status", Static).content, "3 yafs")
 
                     await pilot.press("j")
@@ -267,23 +473,324 @@ class YafsViewTest(unittest.TestCase):
 
         asyncio.run(exercise())
 
-    def test_enter_opens_the_yaf_and_escape_comes_back(self) -> None:
+    def _editor(self, change: str) -> tuple[str, Path]:
+        """An editor that applies a change to the draft text and records the draft's path."""
+        record = Path(self.tmp.name) / "draft-path"
+        code = (
+            "import pathlib, sys; draft = pathlib.Path(sys.argv[1]); "
+            f"pathlib.Path({str(record)!r}).write_text(str(draft)); "
+            f"text = draft.read_text(); draft.write_text({change})"
+        )
+        return python_editor(code), record
+
+    def test_enter_edits_the_yaf_and_saves_the_change(self) -> None:
         async def exercise() -> None:
             app = self._app()
-            with patched_me(), patched_list():
+            editor, record = self._editor("text.replace('Second', 'Changed').replace('09-12', '09-10') + '\\n'")
+            on_server = Yaf(id="y2", content="Second yaf, edited on the web", date=date(2026, 9, 12))
+            saved = Yaf(id="y2", content="Changed yaf, edited on the web", date=date(2026, 9, 10))
+            update = patch("yafyaf_tui.api.client.YafyafClient.update_yaf", return_value=saved)
+            with (
+                patched_me(),
+                patched_list() as list_yafs,
+                patched_get(on_server) as get_yaf,
+                patched_editor(editor),
+                update as update_yaf,
+            ):
                 async with app.run_test(size=(100, 34)) as pilot:
                     await settle(app, pilot)
                     await pilot.press("j", "enter")
                     await settle(app, pilot)
-                    self.assertIsInstance(app.screen, YafDetailScreen)
-                    self.assertEqual(app.screen.yaf, YAFS[1])
-                    self.assertEqual(app.screen.query_one("#yaf-detail-date", Static).content, "2026-09-12")
-                    self.assertIn("Second yaf", str(app.screen.query_one("#yaf-detail-content").source))
 
+                    # The editor gets the server's copy, not the one the list loaded earlier
+                    get_yaf.assert_called_once_with("y2")
+                    update_yaf.assert_called_once_with("y2", "Changed yaf, edited on the web", date(2026, 9, 10))
+                    draft = Path(record.read_text())
+                    self.assertTrue(draft.name.startswith("yaf-y2-"))
+                    self.assertFalse(draft.exists())
+                    table = app.query_one(YafsTable)
+                    self.assertTrue(table.has_focus)
+                    self.assertEqual(table.cursor_row, 1)
+                    self.assertEqual(row_text(table, 1), ["2026-09-10", "Changed yaf, edited on the web"])
+                    self.assertEqual(app.query_one(YafsView).yafs[1], saved)
+                    self.assertEqual(header_message(app), "Yaf updated")
+                    list_yafs.assert_called_once()
+
+        asyncio.run(exercise())
+
+    def test_nothing_is_saved_without_a_change_and_a_failed_save_keeps_the_draft(self) -> None:
+        async def exercise() -> None:
+            app = self._app()
+            error = ApiError(422, "content is too long")
+            update = patch("yafyaf_tui.api.client.YafyafClient.update_yaf", side_effect=error)
+            with patched_me(), patched_list(), patched_get(), update as update_yaf:
+                async with app.run_test(size=(100, 34), notifications=True) as pilot:
+                    await settle(app, pilot)
+
+                    # Saving an untouched file only adds the final newline, which is not an edit
+                    editor, record = self._editor("text + '\\n'")
+                    with patched_editor(editor):
+                        await pilot.press("enter")
+                        await settle(app, pilot)
+                    update_yaf.assert_not_called()
+                    self.assertFalse(Path(record.read_text()).exists())
+                    self.assertEqual(header_message(app), "")
+
+                    with patched_editor(python_editor("raise SystemExit(3)")) as resumed:
+                        await pilot.press("enter")
+                        await settle(app, pilot)
+                    update_yaf.assert_not_called()
+                    self.assertEqual(resumed, [True])
+                    self.assertIn("exited with status 3", header_message(app))
+
+                    editor, record = self._editor("text.replace('2026-09-13', '2026-02-30')")
+                    with patched_editor(editor):
+                        await pilot.press("enter")
+                        await settle(app, pilot)
+                    update_yaf.assert_not_called()
+                    draft = Path(record.read_text())
+                    self.assertIn(f"Edit kept in {draft}", header_message(app))
+                    self.assertTrue(draft.read_text().startswith("---\ndate: 2026-02-30\n---"))
+                    draft.unlink()
+
+                    # Without front matter the yaf keeps its date
+                    editor, record = self._editor("'Replaced'")
+                    with patched_editor(editor):
+                        await pilot.press("enter")
+                        await settle(app, pilot)
+                    update_yaf.assert_called_once_with("y1", "Replaced", date(2026, 9, 13))
+                    draft = Path(record.read_text())
+                    self.assertTrue(draft.exists())
+                    self.assertIn(str(draft), header_message(app))
+                    draft.unlink()
+                    self.assertEqual(row_text(app.query_one(YafsTable), 0), ["2026-09-13", "First yaf"])
+
+        asyncio.run(exercise())
+
+    def test_new_yaf_key_and_button_write_a_new_yaf_in_the_editor(self) -> None:
+        async def exercise() -> None:
+            app = self._app()
+            written = self._editor("'---\\ndate: 2026-09-10\\n---\\n\\nFresh yaf\\n'")
+            # Changing only the date of an empty draft still counts as a cancel
+            left_empty = self._editor("'---\\ndate: 2026-09-09\\n---\\n\\n'")
+            created = Yaf(id="y9", content="Fresh yaf", date=date(2026, 9, 10))
+            create = patch("yafyaf_tui.api.client.YafyafClient.create_yaf", return_value=created)
+            with patched_me(), patched_list() as list_yafs, create as create_yaf:
+                async with app.run_test(size=(100, 34), notifications=True) as pilot:
+                    await settle(app, pilot)
+
+                    editor, record = written
+                    with patched_editor(editor):
+                        await pilot.press("n")
+                        await settle(app, pilot)
+                    draft = Path(record.read_text())
+                    self.assertTrue(draft.name.startswith("yaf-new-"))
+                    self.assertFalse(draft.exists())
+                    create_yaf.assert_called_once_with("Fresh yaf", date(2026, 9, 10))
+                    self.assertEqual(list_yafs.call_count, 2)
+                    self.assertEqual(header_message(app), "Yaf created")
+
+                    editor, record = left_empty
+                    record.unlink()
+                    with patched_editor(editor):
+                        await pilot.click("#btn-new-yaf")
+                        await settle(app, pilot)
+                    self.assertFalse(Path(record.read_text()).exists())
+                    create_yaf.assert_called_once()
+                    self.assertEqual(header_message(app), "Yaf created")
+                    self.assertTrue(app.query_one(YafsTable).has_focus)
+
+        asyncio.run(exercise())
+
+    def test_a_yaf_deleted_elsewhere_refreshes_the_list_or_is_saved_as_a_new_yaf(self) -> None:
+        async def exercise() -> None:
+            app = self._app()
+            after_delete = YafPage(yafs=YAFS[1:], records_count=1)
+            deleted = NotFoundError(404, "Record not found")
+            editor, record = self._editor("text.replace('Second', 'Rescued')")
+            created = Yaf(id="y9", content="Rescued yaf", date=date(2026, 9, 12))
+            with (
+                patched_me(),
+                patched_list(ONE_PAGE, after_delete, ONE_PAGE) as list_yafs,
+                patched_editor(editor),
+                patch("yafyaf_tui.api.client.YafyafClient.update_yaf", side_effect=deleted) as update_yaf,
+                patch("yafyaf_tui.api.client.YafyafClient.create_yaf", return_value=created) as create_yaf,
+            ):
+                async with app.run_test(size=(100, 34), notifications=True) as pilot:
+                    await settle(app, pilot)
+
+                    # Deleted before opening: no editor, and the list reloads without it
+                    with patched_get(error=deleted):
+                        await pilot.press("enter")
+                        await settle(app, pilot)
+                    self.assertFalse(record.exists())
+                    self.assertEqual(list_yafs.call_count, 2)
+                    self.assertEqual(row_text(app.query_one(YafsTable), 0), ["2026-09-12", "Second yaf"])
+                    self.assertIn("deleted", header_message(app))
+
+                    # Deleted while the editor was open: the edit becomes a new yaf
+                    with patched_get():
+                        await pilot.press("enter")
+                        await settle(app, pilot)
+                    update_yaf.assert_called_once_with("y2", "Rescued yaf", date(2026, 9, 12))
+                    create_yaf.assert_called_once_with("Rescued yaf", date(2026, 9, 12))
+                    self.assertFalse(Path(record.read_text()).exists())
+                    self.assertEqual(list_yafs.call_count, 3)
+                    self.assertIn("saved your edit as a new yaf", header_message(app))
+
+        asyncio.run(exercise())
+
+    def test_blanking_a_yaf_deletes_it_after_confirmation(self) -> None:
+        async def exercise() -> None:
+            app = self._app()
+            # Whitespace under the front matter is as blank as an empty file
+            editor, record = self._editor("'---\\ndate: 2026-09-13\\n---\\n  \\n'")
+            after_delete = YafPage(yafs=YAFS[1:], records_count=1)
+            with (
+                patched_me(),
+                patched_list(ONE_PAGE, after_delete, after_delete) as list_yafs,
+                patched_get(),
+                patched_editor(editor),
+                patch("yafyaf_tui.api.client.YafyafClient.update_yaf") as update_yaf,
+                patch("yafyaf_tui.api.client.YafyafClient.delete_yaf") as delete_yaf,
+            ):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+
+                    # Enter lands on Cancel, so a reflexive Enter does not delete
+                    await pilot.press("enter")
+                    await settle(app, pilot)
+                    self.assertIsInstance(app.screen, ConfirmDialog)
+                    self.assertEqual(app.screen.query_one("#dialog-message", Static).content, "Delete the yaf from 2026-09-13?")
+                    self.assertEqual(app.screen.query_one("#dialog-detail", Static).content, "First yaf")
+                    self.assertFalse(Path(record.read_text()).exists())
+                    await pilot.press("enter")
+                    await settle(app, pilot)
+                    self.assertNotIsInstance(app.screen, ConfirmDialog)
+                    delete_yaf.assert_not_called()
+
+                    await pilot.press("enter")
+                    await settle(app, pilot)
                     await pilot.press("escape")
                     await settle(app, pilot)
-                    self.assertNotIsInstance(app.screen, YafDetailScreen)
-                    self.assertTrue(app.query_one(YafsTable).has_focus)
+                    delete_yaf.assert_not_called()
+
+                    await pilot.press("enter")
+                    await settle(app, pilot)
+                    await pilot.click("#confirm-btn")
+                    await settle(app, pilot)
+                    delete_yaf.assert_called_once_with("y1")
+                    update_yaf.assert_not_called()
+                    self.assertEqual(list_yafs.call_count, 2)
+                    self.assertEqual(row_text(app.query_one(YafsTable), 0), ["2026-09-12", "Second yaf"])
+                    self.assertEqual(header_message(app), "Yaf deleted")
+
+                    # Already deleted elsewhere counts as deleted; other failures are reported
+                    for failure, message in (
+                        (NotFoundError(404, "Record not found"), "Yaf deleted"),
+                        (ApiConnectionError("Cannot reach it"), "Not deleted: Cannot reach it"),
+                    ):
+                        delete_yaf.side_effect = failure
+                        await pilot.press("enter")
+                        await settle(app, pilot)
+                        await pilot.click("#confirm-btn")
+                        await settle(app, pilot)
+                        self.assertEqual(header_message(app), message)
+                    self.assertEqual(list_yafs.call_count, 3)
+
+        asyncio.run(exercise())
+
+    def test_the_highlight_follows_the_mouse_and_a_click_opens_the_row(self) -> None:
+        async def exercise() -> None:
+            app = self._app()
+            linked = Yaf(id="y3", content="[docs](https://d.com)", date=date(2026, 9, 1))
+            page = YafPage(yafs=(*YAFS, linked), records_count=3)
+            with patched_me(), patched_list(page), patched_get(linked) as get_yaf, patched_editor(python_editor("pass")):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    table = app.query_one(YafsTable)
+                    await pilot.hover(table, offset=(20, 1))
+                    await pilot.pause()
+                    self.assertEqual(table.cursor_row, 1)
+                    await pilot.hover(table, offset=(2, 0))
+                    await pilot.pause()
+                    self.assertEqual(table.cursor_row, 0)
+
+                    # Over a link, the row is highlighted too
+                    link_x = DATE_WIDTH + 3 * table.cell_padding
+                    await pilot.hover(table, offset=(link_x, 2))
+                    await pilot.pause()
+                    self.assertEqual(table.cursor_row, 2)
+                    self.assertTrue(any(span.style.underline for span in table.get_row_at(2)[1].spans))
+                    await pilot.hover(table, offset=(2, 0))
+                    await pilot.pause()
+
+                    await pilot.click(table, offset=(20, 1))
+                    await settle(app, pilot)
+                    get_yaf.assert_called_once_with("y2")
+
+        asyncio.run(exercise())
+
+    def test_links_are_blue_underlined_on_hover_and_open_on_click(self) -> None:
+        text = summary_text("See [ESI](https://e.com/a?b=1&c=2) and https://x.tv/p, or (https://ooh.directory).", "#61afef")
+        self.assertEqual(text.plain, "See ESI and https://x.tv/p, or (https://ooh.directory).")
+        links = [(text.plain[span.start : span.end], span.style.link) for span in text.spans]
+        self.assertEqual(
+            links,
+            [
+                ("ESI", "https://e.com/a?b=1&c=2"),
+                ("https://x.tv/p", "https://x.tv/p"),
+                ("https://ooh.directory", "https://ooh.directory"),
+            ],
+        )
+        self.assertTrue(all(span.style.color.name == "#61afef" and not span.style.underline for span in text.spans))
+        hovered = summary_text("[a](https://a.com) [b](https://b.com)", hovered_link="https://b.com")
+        self.assertEqual([span.style.underline for span in hovered.spans], [False, True])
+
+        # A markdown heading drops its marks and turns the heading color; links inside stay links
+        for summary in ("# Portland Trophy Cup", "### Portland Trophy Cup ##"):
+            heading = summary_text(summary, heading_color="#e5c07b")
+            self.assertEqual((heading.plain, str(heading.style)), ("Portland Trophy Cup", "#e5c07b"))
+        heading = summary_text("## See [docs](https://d.com)", "#61afef", heading_color="#e5c07b")
+        self.assertEqual((heading.plain, heading.spans[0].style.link), ("See docs", "https://d.com"))
+        for not_heading in ("#hashtag", "C# notes", "#"):
+            self.assertEqual(summary_text(not_heading, heading_color="#e5c07b").plain, not_heading)
+
+        async def exercise() -> None:
+            app = self._app()
+            page = YafPage(yafs=(Yaf(id="y1", content="Read [docs](https://d.com) now", date=date(2026, 9, 13)),), records_count=1)
+            with (
+                patched_me(),
+                patched_list(page),
+                patched_get() as get_yaf,
+                patch.object(YafyafApp, "open_url") as open_url,
+            ):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    table = app.query_one(YafsTable)
+                    # Summary cells start after the padded date column and their own left padding
+                    link_x = DATE_WIDTH + 2 * table.cell_padding + table.cell_padding + len("Read ")
+
+                    def link_underlined() -> bool:
+                        return any(span.style.underline for span in table.get_row_at(0)[1].spans)
+
+                    await pilot.hover(table, offset=(link_x, 0))
+                    await pilot.pause()
+                    self.assertTrue(link_underlined())
+                    await pilot.hover(table, offset=(link_x - 3, 0))
+                    await pilot.pause()
+                    self.assertFalse(link_underlined())
+
+                    await pilot.click(table, offset=(link_x + 1, 0))
+                    await settle(app, pilot)
+                    open_url.assert_called_once_with("https://d.com")
+                    get_yaf.assert_not_called()
+
+                    # Outside the link, a click opens the yaf
+                    with patched_editor(python_editor("pass")):
+                        await pilot.click(table, offset=(link_x - 3, 0))
+                        await settle(app, pilot)
+                    get_yaf.assert_called_once_with("y1")
 
         asyncio.run(exercise())
 

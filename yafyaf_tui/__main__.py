@@ -3,7 +3,8 @@ from collections.abc import Sequence
 
 from . import __version__
 from .app import YafyafApp
-from .config import DEFAULT_URL, URL_ENV_VAR, resolve_url
+from .commands import new_yaf
+from .config import DEFAULT_URL, URL_ENV_VAR, TokenStore, resolve_url
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -14,9 +15,19 @@ def main(argv: Sequence[str] | None = None) -> None:
         metavar="URL",
         help=f"YafYaf server to talk to (default: ${URL_ENV_VAR} or {DEFAULT_URL})",
     )
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=["new"],
+        help="new: write a new yaf in $EDITOR instead of opening the list",
+    )
     args = parser.parse_args(argv)
+    url = resolve_url(args.url)
 
-    app = YafyafApp(url=resolve_url(args.url))
+    if args.command == "new":
+        raise SystemExit(new_yaf(url, TokenStore.for_url(url)))
+
+    app = YafyafApp(url=url)
     app.run()
 
 

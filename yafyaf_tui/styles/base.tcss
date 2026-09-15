@@ -34,6 +34,10 @@ ModalScreen {
     width: 1fr;
 }
 
+.header-notification-spacer {
+    width: 1fr;
+}
+
 #app-title {
     width: auto;
     text-style: bold;
@@ -57,6 +61,42 @@ ModalScreen {
     color: $yellow;
 }
 
+#btn-sign-out {
+    width: auto;
+    min-width: 0;
+    height: 1;
+    border: none;
+    padding: 0 2;
+    margin-left: 2;
+    background: $comment 30%;
+    color: $fg;
+}
+
+#btn-sign-out:hover {
+    background: $comment 50%;
+}
+
+HeaderNotification {
+    width: 40%;
+    height: auto;
+    max-height: 2;
+    padding: 0 1;
+}
+
+HeaderNotification.-information {
+    color: $green;
+}
+
+HeaderNotification.-warning {
+    color: $yellow;
+}
+
+/* An extra line so a failed save's kept-draft path is not cut off */
+HeaderNotification.-error {
+    max-height: 3;
+    color: $red;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    MAIN AREA
    ═══════════════════════════════════════════════════════════════════════ */
@@ -66,35 +106,61 @@ ModalScreen {
     height: 1fr;
 }
 
+#yafs-controls {
+    height: auto;
+    margin-bottom: 1;
+    background: transparent;
+}
+
 #yafs-view #search {
-    width: 100%;
+    width: 1fr;
     background: $bg;
     color: $fg;
     border: solid $gutter;
-    margin-bottom: 1;
 }
 
 #yafs-view #search:focus {
     border: solid $blue;
 }
 
+/* The search box is 3 rows with its border; the top margin lines the button up with its text */
+#yafs-controls Button {
+    margin: 1 0 0 3;
+    width: auto;
+    min-width: 0;
+    border: none;
+    padding: 0 2;
+}
+
+#btn-new-yaf {
+    background: $blue 30%;
+    color: $blue;
+}
+
+#btn-new-yaf:hover {
+    background: $blue 50%;
+}
+
+#btn-new-yaf:focus {
+    background: $blue;
+    color: $bg-dark;
+    text-style: bold;
+}
+
 #yafs-table {
     height: 1fr;
     background: transparent;
+    /* The theme's text color, like Flotte; Textual's default is near white */
+    color: $fg;
     scrollbar-size-vertical: 1;
+    /* Same scrollbar colors as Flotte */
+    scrollbar-background: $bg;
+    scrollbar-background-hover: $bg;
+    scrollbar-background-active: $bg;
+    scrollbar-color: $gutter;
+    scrollbar-color-hover: $comment;
+    scrollbar-color-active: $blue;
     overflow-x: hidden;
-}
-
-#yafs-table > .datatable--header {
-    background: transparent;
-    color: $comment;
-    text-style: none;
-}
-
-#yafs-table > .datatable--header-hover {
-    background: transparent;
-    color: $comment;
-    text-style: none;
 }
 
 #yafs-table > .datatable--cursor {
@@ -107,60 +173,22 @@ ModalScreen {
     background: transparent;
 }
 
-#yafs-status {
+#yafs-header {
     height: 1;
     color: $comment;
-    margin-top: 1;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   YAF DETAIL
-   ═══════════════════════════════════════════════════════════════════════ */
-
-#yaf-detail-meta {
+#yafs-header-rule {
     height: 1;
-    padding: 0 1;
-    margin-bottom: 1;
+    color: $comment;
 }
 
-#yaf-detail-date {
-    width: auto;
-    color: $yellow;
-    text-style: bold;
-}
-
-#yaf-detail-edited {
+#yafs-header-summary {
     width: 1fr;
-    color: $comment;
-    text-align: right;
 }
 
-#yaf-detail-body {
-    height: 1fr;
-    padding: 0 1;
-    scrollbar-size-vertical: 1;
-}
-
-#yaf-detail-body:focus {
-    border: none;
-}
-
-#yaf-detail-content {
-    background: transparent;
-    padding: 0;
-    margin: 0;
-}
-
-#yaf-detail-content MarkdownH1,
-#yaf-detail-content MarkdownH2,
-#yaf-detail-content MarkdownH3 {
-    text-align: left;
-    content-align: left middle;
-    background: transparent;
-    border: none;
-    padding: 0;
-    margin: 0 0 1 0;
-    color: $blue;
+#yafs-status {
+    width: auto;
 }
 
 #status-line {
@@ -336,6 +364,85 @@ ModalScreen Button:focus {
 
 ModalScreen Button:disabled {
     color: $comment;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CONFIRM DIALOG
+   ═══════════════════════════════════════════════════════════════════════ */
+
+ConfirmDialog {
+    align: center top;
+    background: $bg 80%;
+}
+
+ConfirmDialog > Vertical {
+    width: auto;
+    min-width: 40;
+    max-width: 60;
+    background: $bg-dark;
+    border: none;
+    padding: 1 2;
+}
+
+ConfirmDialog #dialog-title {
+    text-style: bold;
+    color: $red;
+    margin-bottom: 1;
+}
+
+ConfirmDialog #dialog-message {
+    color: $fg;
+}
+
+ConfirmDialog #dialog-detail {
+    margin-top: 1;
+    color: $comment;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+ConfirmDialog #dialog-buttons {
+    height: 1;
+    align: right middle;
+    margin-top: 1;
+}
+
+ConfirmDialog Button {
+    width: auto;
+    min-width: 0;
+    border: none;
+    margin: 0 0 0 1;
+    padding: 0 2;
+}
+
+ConfirmDialog #cancel-btn {
+    background: $bg-light;
+    color: $fg;
+}
+
+ConfirmDialog #cancel-btn:hover {
+    background: $gutter;
+}
+
+ConfirmDialog #cancel-btn:focus {
+    background: $blue;
+    color: $bg-dark;
+    text-style: bold;
+}
+
+ConfirmDialog #confirm-btn {
+    background: $red 30%;
+    color: $red;
+}
+
+ConfirmDialog #confirm-btn:hover {
+    background: $red 50%;
+}
+
+ConfirmDialog #confirm-btn:focus {
+    background: $red;
+    color: white;
+    text-style: bold;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

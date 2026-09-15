@@ -1,27 +1,46 @@
 import asyncio
+import re
+from datetime import date
 from pathlib import Path
 
 from textual import on, work
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding
-from textual.widgets import Static
+from textual.notifications import Notification, SeverityLevel
+from textual.widgets import Button, Static
 
-from .api import ApiConnectionError, AuthenticationError, Session, User, YafyafClient
+from .api import (
+    ApiConnectionError,
+    ApiError,
+    AuthenticationError,
+    NotFoundError,
+    Session,
+    User,
+    Yaf,
+    YafyafClient,
+)
 from .config import DEFAULT_URL, Config, TokenStore, load_config
-from .screens import HelpScreen, LoginScreen, YafDetailScreen
+from .editor import Draft, DraftError, EditorError, Entry
+from .screens import ConfirmDialog, HelpScreen, LoginScreen
 from .shortcuts import GENERAL
-from .widgets import AppHeader, YafOpened, YafsView
+from .widgets import AppHeader, HeaderNotification, NewYafRequested, YafOpened, YafsView
 
 STYLES_DIR = Path(__file__).parent / "styles"
 
 
+def _theme_path(theme: str) -> Path:
+    theme_path = STYLES_DIR / "themes" / f"{theme}.tcss"
+    return theme_path if theme_path.exists() else STYLES_DIR / "themes" / "onedark.tcss"
+
+
 def build_css(theme: str) -> str:
     """Concatenate theme variables with base rules so the variables are in scope."""
-    theme_path = STYLES_DIR / "themes" / f"{theme}.tcss"
-    if not theme_path.exists():
-        theme_path = STYLES_DIR / "themes" / "onedark.tcss"
-    base_path = STYLES_DIR / "base.tcss"
-    return theme_path.read_text() + "\n" + base_path.read_text()
+    return _theme_path(theme).read_text() + "\n" + (STYLES_DIR / "base.tcss").read_text()
+
+
+def theme_colors(theme: str) -> dict[str, str]:
+    """The theme's $name: #hex variables, for text styled in Python where TCSS variables do not reach."""
+    return dict(re.findall(r"\$([\w-]+):\s*(#[0-9a-fA-F]{6})", _theme_path(theme).read_text()))
 
 
 class YafyafApp(App):
@@ -49,13 +68,59 @@ class YafyafApp(App):
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        yield AppHeader(self.url)
-        yield YafsView(self.client)
+        sign_out = Button("Sign out", id="btn-sign-out")
+        # Clicking must not pull focus off the list, which the dialog would then hand back to the button
+        sign_out.can_focus = False
+        sign_out.display = False
+        yield AppHeader(self.url, sign_out)
+        colors = theme_colors(self.config.theme)
+        yield YafsView(
+            self.client,
+            date_color=colors["comment"],
+            link_color=colors["blue"],
+            heading_color=colors["yellow"],
+        )
         yield Static("", id="status-line")
+
+    def notify(
+        self,
+        message: str,
+        *,
+        title: str = "",
+        severity: SeverityLevel = "information",
+        timeout: float | None = None,
+        markup: bool = False,
+    ) -> None:
+        """Show notifications in the header instead of as toasts.
+
+        Markup is off by default because messages carry server errors and file paths, which may contain brackets.
+        """
+        notification = Notification(
+            message,
+            title,
+            severity,
+            self.NOTIFICATION_TIMEOUT if timeout is None else timeout,
+            markup=markup,
+        )
+        self.call_later(self._show_notification, notification)
+
+    def _show_notification(self, notification: Notification) -> None:
+        for screen in reversed(self.screen_stack):
+            notifications = list(screen.query(HeaderNotification))
+            if notifications:
+                notifications[0].show_notification(notification)
+                return
+        super().notify(
+            notification.message,
+            title=notification.title,
+            severity=notification.severity,
+            timeout=max(notification.time_left, 0),
+            markup=notification.markup,
+        )
 
     def on_mount(self) -> None:
         for warning in self.config.warnings:
-            self.notify(warning, title="Config", severity="warning", timeout=10)
+            self.notify(warning, severity="warning", timeout=10)
         if self.client.token:
             self._check_token()
         else:
@@ -89,15 +154,156 @@ class YafyafApp(App):
         self._signed_in_as(session.user)
 
     def _signed_in_as(self, user: User) -> None:
-        self._set_status(f"Signed in as {user.email}")
+        self._set_status("")
+        self.query_one("#btn-sign-out", Button).display = True
         self.query_one(YafsView).load()
 
+    @on(Button.Pressed, "#btn-sign-out")
+    def _confirm_sign_out(self) -> None:
+        if self.user is None:
+            return
+        dialog = ConfirmDialog(
+            f"You are signed in as {self.user.email}",
+            title="Sign Out",
+            confirm_label="Sign out",
+            cancel_label="Cancel",
+        )
+        self.push_screen(dialog, lambda confirmed: self._sign_out() if confirmed else None)
+
+    @work(exclusive=True)
+    async def _sign_out(self) -> None:
+        try:
+            await asyncio.to_thread(self.client.logout)
+        except (ApiError, ApiConnectionError):
+            pass  # Forgetting the token locally is what signs out; revoking it is best effort
+        self.token_store.clear()
+        self.client.token = ""
+        self.user = None
+        self.query_one("#btn-sign-out", Button).display = False
+        self.query_one(YafsView).reset()
+        self._ask_login()
+
     def _set_status(self, text: str) -> None:
-        self.query_one("#status-line", Static).update(text)
+        status = self.query_one("#status-line", Static)
+        status.update(text)
+        # Only connection problems use this line now, so it takes no room otherwise
+        status.display = bool(text)
 
     @on(YafOpened)
     def _open_yaf(self, event: YafOpened) -> None:
-        self.push_screen(YafDetailScreen(event.yaf))
+        self._fetch_and_edit(event.yaf)
+
+    @work(exclusive=True, group="open")
+    async def _fetch_and_edit(self, yaf: Yaf) -> None:
+        """Edit the server's copy, so a yaf deleted or changed in the web app is not edited stale."""
+        view = self.query_one(YafsView)
+        try:
+            current = await asyncio.to_thread(self.client.get_yaf, yaf.id)
+        except NotFoundError:
+            self.notify("That yaf was deleted, refreshing the list", severity="warning")
+            view.load()
+            return
+        except (ApiError, ApiConnectionError) as error:
+            self.notify(str(error), severity="error")
+            return
+        view.replace(current)
+        # Suspend from a plain callback rather than inside this worker
+        self.call_later(self._edit_yaf, current)
+
+    @on(NewYafRequested)
+    def _new_yaf(self) -> None:
+        self._edit_yaf(None)
+
+    def _edit_yaf(self, yaf: Yaf | None) -> None:
+        """Edit yaf in $EDITOR, or write a new one when yaf is None."""
+        if yaf is None:
+            draft = Draft.create("", date.today(), "new")
+        else:
+            draft = Draft.create(yaf.content, yaf.date, yaf.id)
+        failure: Exception | None = None
+        try:
+            with self.suspend():
+                try:
+                    draft.edit()
+                except EditorError as error:
+                    # Textual only restores the TUI when the suspend block exits without raising
+                    failure = error
+        except SuspendNotSupported as error:
+            failure = error
+        if failure is not None:
+            draft.discard()
+            self.notify(str(failure), severity="error")
+            return
+        try:
+            entry = draft.read()
+        except DraftError as error:
+            self._not_saved(error, draft)
+            return
+        blank = not entry.content.strip()
+        # A new yaf left blank is a cancel, even if its date was changed
+        if entry == draft.original or (yaf is None and blank):
+            draft.discard()
+        elif blank:
+            # Blanking a yaf is how it gets deleted; the empty draft holds nothing worth keeping
+            draft.discard()
+            self._confirm_delete(yaf)
+        else:
+            self._save_yaf(yaf, draft, entry)
+
+    def _confirm_delete(self, yaf: Yaf) -> None:
+        dialog = ConfirmDialog(
+            f"Delete the yaf from {yaf.date.isoformat()}?",
+            title="Delete Yaf",
+            confirm_label="Delete",
+            cancel_label="Cancel",
+            detail=yaf.summary,
+        )
+        self.push_screen(dialog, lambda confirmed: self._delete_yaf(yaf) if confirmed else None)
+
+    @work(group="save")
+    async def _delete_yaf(self, yaf: Yaf) -> None:
+        try:
+            await asyncio.to_thread(self.client.delete_yaf, yaf.id)
+        except NotFoundError:
+            pass  # Already deleted elsewhere, which is what was asked for
+        except (ApiError, ApiConnectionError) as error:
+            self.notify(f"Not deleted: {error}", severity="error")
+            return
+        self.query_one(YafsView).load()
+        self.notify("Yaf deleted")
+
+    @work(group="save")
+    async def _save_yaf(self, yaf: Yaf | None, draft: Draft, entry: Entry) -> None:
+        view = self.query_one(YafsView)
+        message = "Yaf updated" if yaf is not None else "Yaf created"
+        try:
+            if yaf is not None:
+                try:
+                    saved = await asyncio.to_thread(self.client.update_yaf, yaf.id, entry.content, entry.date)
+                except NotFoundError:
+                    # Deleted elsewhere while the editor was open; keep the edit as a new yaf
+                    yaf = None
+                    message = "That yaf was deleted, saved your edit as a new yaf"
+            if yaf is None:
+                await asyncio.to_thread(self.client.create_yaf, entry.content, entry.date)
+        except (ApiError, ApiConnectionError) as error:
+            self._not_saved(error, draft)
+            return
+        draft.discard()
+        if yaf is None:
+            # Where a new yaf lands depends on its date and the search, so let the server order it
+            view.load()
+        else:
+            view.replace(saved)
+        self.notify(message)
+
+    def _not_saved(self, error: Exception, draft: Draft) -> None:
+        # Keep the file so a failed save does not throw away the edit
+        self.notify(
+            f"Not saved: {error}\nEdit kept in {draft.path}",
+            severity="error",
+            timeout=30,
+        )
 
     def action_help(self) -> None:
         self.push_screen(HelpScreen())

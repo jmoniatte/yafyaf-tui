@@ -28,6 +28,10 @@ class AuthenticationError(ApiError):
     """The token is missing, unknown, or revoked."""
 
 
+class NotFoundError(ApiError):
+    """The record does not exist, or was deleted."""
+
+
 class ApiConnectionError(Exception):
     """The server could not be reached."""
 
@@ -132,6 +136,20 @@ class YafyafClient:
             params["q"] = q
         return YafPage.from_json(self.request("GET", "/api/yafs", params=params))
 
+    def get_yaf(self, yaf_id: str) -> Yaf:
+        return Yaf.from_json(self.request("GET", f"/api/yafs/{yaf_id}")["yaf"])
+
+    def create_yaf(self, content: str, day: date) -> Yaf:
+        data = self.request("POST", "/api/yafs", {"yaf": _yaf_fields(content, day)})
+        return Yaf.from_json(data["yaf"])
+
+    def update_yaf(self, yaf_id: str, content: str, day: date) -> Yaf:
+        data = self.request("PATCH", f"/api/yafs/{yaf_id}", {"yaf": _yaf_fields(content, day)})
+        return Yaf.from_json(data["yaf"])
+
+    def delete_yaf(self, yaf_id: str) -> None:
+        self.request("DELETE", f"/api/yafs/{yaf_id}")
+
     def request(
         self,
         method: str,
@@ -167,6 +185,10 @@ class YafyafClient:
             raise ApiConnectionError(f"Cannot reach {self.base_url}: {reason}") from None
 
 
+def _yaf_fields(content: str, day: date) -> dict[str, str]:
+    return {"content": content, "date": day.isoformat()}
+
+
 def _parse_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -193,4 +215,6 @@ def _api_error(error: HTTPError) -> ApiError:
         message = "; ".join(f"{field} {problem}" for field, problem in data["errors"].items())
     if error.code == HTTPStatus.UNAUTHORIZED:
         return AuthenticationError(error.code, message)
+    if error.code == HTTPStatus.NOT_FOUND:
+        return NotFoundError(error.code, message)
     return ApiError(error.code, message)
