@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from yafyaf_tui.config import DEFAULT_URL, Config, TokenStore, load_config, resolve_url, save_theme
+from yafyaf_tui.theme import default_theme
 
 
 class LoadConfigTest(unittest.TestCase):
@@ -23,10 +24,19 @@ class LoadConfigTest(unittest.TestCase):
             path = Path(tmp) / "config.yaml"
             path.write_text("theme: onelight\n")
             config = load_config(path)
-        self.assertEqual(config.theme, Config().theme)
+        self.assertEqual(config.theme, default_theme())
         self.assertEqual(len(config.warnings), 1)
         self.assertIn("'onelight' is not installed", config.warnings[0])
         self.assertIn("one-light", config.warnings[0])
+
+    def test_terminal_theme_is_the_default_and_always_accepted(self) -> None:
+        self.assertEqual(Config().theme, "terminal")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.yaml"
+            path.write_text("theme: terminal\n")
+            config = load_config(path)
+        self.assertEqual(config.theme, "terminal")
+        self.assertEqual(config.warnings, [])
 
 
 class SaveThemeTest(unittest.TestCase):

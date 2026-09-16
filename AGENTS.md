@@ -40,6 +40,7 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
     api/client.py       # Blocking urllib client for /api/; call it via asyncio.to_thread
     shortcuts.py        # Help screen contents, read off the bindings
     theme.py            # base16 scheme loading, palette derivation
+    terminal_theme.py   # OSC queries that read the terminal's own palette before Textual starts
     widgets/            # Textual widgets (yafs_view.py: search box + list, paged from the API)
     screens/            # Textual screens (settings, login, theme picker)
     styles/             # base.tcss (layout) + themes/*.yaml (base16 schemes)
@@ -54,6 +55,19 @@ the 16 slots straight onto the TCSS variables `base.tcss` uses and derives the
 other two (`$bg-dark`, `$gutter`) from the scheme's greyscale ramp, so adding a
 theme means adding a file and nothing else. `config.py` rejects a `theme` that
 does not name one of them.
+
+`theme: terminal` (the default) is not a file. `terminal_theme.py` asks the
+terminal for its colours with OSC 10, 11 and 4 before Textual starts, maps the
+ANSI palette onto base16 slots and derives the rest, and `__main__` registers
+the result with `theme.register_terminal_scheme`. A terminal that stays silent,
+or whose `$fg` on `$bg` fails `MIN_TEXT_CONTRAST`, registers no scheme: the app
+then shows `theme.default_theme()` and the pickers do not list `terminal`. That
+default is `one-light` when the terminal reported a light background and
+`onedark` otherwise, so a rejected light terminal never gets a dark app. The
+surfaces ANSI has no slot for (`base01`, `base02`) are placed by contrast
+against the background rather than by a fixed RGB step, which lands the same
+distance out on light and dark ramps.
+`theme.effective_theme` is the name to compare against or show as current.
 
 Filenames are the upstream scheme slugs verbatim, and that is exactly what
 `config.yaml` sets -- no aliases, no renaming. Upstream is inconsistent about
@@ -78,9 +92,10 @@ Never hardcode a color in `base.tcss`.
 `yaf` talks to `https://yafyaf.com` unless started with `--url` or `YAFYAF_URL` (flag wins);
 see `config.resolve_url`. End users configure nothing.
 
-`~/.config/yafyaf-tui/config.yaml` is optional and only holds `theme`, the slug of a scheme in
-`yafyaf_tui/styles/themes/`. The picker writes it back with `config.save_theme`, which replaces
-the `theme:` line rather than rewriting the file, so a hand-written config keeps its comments.
+`~/.config/yafyaf-tui/config.yaml` is optional and only holds `theme`: `terminal` (the default)
+or the slug of a scheme in `yafyaf_tui/styles/themes/`. The picker writes it back with
+`config.save_theme`, which replaces the `theme:` line rather than rewriting the file, so a
+hand-written config keeps its comments.
 
 The API token is not in the config file. `TokenStore.for_url` keeps one token per server in
 `~/.config/yafyaf-tui/tokens/<host>[_<port>]` (mode 600); the login screen writes it and a

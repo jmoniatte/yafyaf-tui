@@ -28,6 +28,7 @@ from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.commands import new_yaf
 from yafyaf_tui.config import DEFAULT_URL, Config, TokenStore
 from yafyaf_tui.screens import ConfirmDialog, LoginScreen, SettingsScreen
+from yafyaf_tui.terminal_theme import TerminalReport
 from yafyaf_tui.theme import load_palette
 from yafyaf_tui.widgets import HeaderNotification, YafsTable, YafsView
 from yafyaf_tui.widgets.yafs_view import DATE_WIDTH, summary_text
@@ -105,7 +106,11 @@ class MainTest(unittest.TestCase):
         self.assertEqual(output.getvalue().strip(), f"YafYaf TUI {__version__}")
 
     def test_url_flag_and_environment_pick_the_server(self) -> None:
-        with patch("yafyaf_tui.__main__.YafyafApp") as app_class:
+        # The test runner may sit on a real tty; do not send it colour queries
+        with (
+            patch("yafyaf_tui.__main__.YafyafApp") as app_class,
+            patch("yafyaf_tui.__main__.query_terminal", return_value=TerminalReport()) as query,
+        ):
             with patch.dict("os.environ", {"YAFYAF_URL": ""}):
                 main([])
             with patch.dict("os.environ", {"YAFYAF_URL": "http://localhost:3000"}):
@@ -114,14 +119,17 @@ class MainTest(unittest.TestCase):
         urls = [call.kwargs["url"] for call in app_class.call_args_list]
         self.assertEqual(urls, [DEFAULT_URL, "http://localhost:3000", "http://localhost:3100"])
         self.assertEqual(app_class.return_value.run.call_count, 3)
+        self.assertEqual(query.call_count, 3)
 
     def test_new_command_creates_a_yaf_without_starting_the_tui(self) -> None:
         with (
             patch("yafyaf_tui.__main__.YafyafApp") as app_class,
             patch("yafyaf_tui.__main__.new_yaf", return_value=0) as command,
+            patch("yafyaf_tui.__main__.query_terminal") as query,
             self.assertRaises(SystemExit) as raised,
         ):
             main(["new", "--url", "http://localhost:3100"])
+        query.assert_not_called()
         self.assertEqual(raised.exception.code, 0)
         self.assertEqual(command.call_args.args[0], "http://localhost:3100")
         self.assertEqual(command.call_args.args[1].path.name, "localhost_3100")

@@ -71,8 +71,10 @@ started on. The choice is written to
 theme: one-light
 ```
 
-Themes are [base16 schemes](https://github.com/tinted-theming/schemes) and are named by their
-upstream slug.
+The default, `terminal`, reads the colours from the terminal itself (xterm OSC 10, 11 and 4
+queries). The other themes are [base16 schemes](https://github.com/tinted-theming/schemes)
+named by their upstream slug. When the terminal does not answer, `onedark` (or `one-light` on
+a light terminal) is used and `terminal` is not offered in the theme pickers.
 
 ### Talking to another server
 

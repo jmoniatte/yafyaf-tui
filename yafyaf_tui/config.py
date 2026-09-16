@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 import yaml
 
-from .theme import DEFAULT_THEME, list_themes, resolve_theme
+from .theme import TERMINAL_THEME, default_theme, is_known_theme, list_themes
 
 CONFIG_DIR = Path.home() / ".config" / "yafyaf-tui"
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
@@ -22,7 +22,9 @@ _THEME_LINE = re.compile(r"^theme:.*$", re.MULTILINE)
 class Config:
     """Optional, hand-edited settings; the server URL and token are not among them."""
 
-    theme: str = DEFAULT_THEME
+    # "terminal" reads the terminal's own colours; otherwise any scheme in
+    # styles/themes/ (see theme.list_themes()). Falls back to theme.default_theme().
+    theme: str = TERMINAL_THEME
     # Why the config file was ignored; the UI shows these
     warnings: list[str] = field(default_factory=list)
 
@@ -44,9 +46,10 @@ def load_config(path: Path = CONFIG_FILE) -> Config:
 
     theme = data.get("theme")
     if isinstance(theme, str) and theme.strip():
-        if resolve_theme(theme.strip()):
+        if is_known_theme(theme.strip()):
             config.theme = theme.strip()
         else:
+            config.theme = default_theme()
             # Too many themes to list; a near-miss is the useful hint.
             near = get_close_matches(theme.strip(), list_themes(), n=3)
             hint = f" Did you mean: {', '.join(near)}?" if near else ""

@@ -16,7 +16,12 @@ import yaml
 logger = logging.getLogger(__name__)
 
 THEMES_DIR = Path(__file__).parent / "styles" / "themes"
-DEFAULT_THEME = "onedark"
+# Shown when the configured theme is unusable; the light one when the terminal
+# reported a light background, see default_theme().
+DARK_FALLBACK_THEME = "onedark"
+LIGHT_FALLBACK_THEME = "one-light"
+# Not a scheme file: the palette the terminal itself reports, when it does.
+TERMINAL_THEME = "terminal"
 
 BASE16_SLOTS = tuple(f"base{index:02X}" for index in range(16))
 
@@ -38,6 +43,11 @@ SLOT_VARS = {
 
 Rgb = tuple[int, int, int]
 
+# Registered by __main__ once the terminal has answered; None until then.
+_terminal_scheme: dict[str, Rgb] | None = None
+# Known even when the terminal answered but its palette was rejected.
+_terminal_light: bool | None = None
+
 # A derived surface this close to the background reads as no surface at all.
 _MIN_SURFACE_DELTA = 3
 # Fraction of a ramp step between base00 and base01; reproduces the hand-picked
@@ -57,11 +67,11 @@ def _rgb(value: object) -> Rgb:
     return (int(text[0:2], 16), int(text[2:4], 16), int(text[4:6], 16))
 
 
-def _hex(rgb: Rgb) -> str:
+def hex_color(rgb: Rgb) -> str:
     return "#{:02x}{:02x}{:02x}".format(*rgb)
 
 
-def _luminance(rgb: Rgb) -> float:
+def luminance(rgb: Rgb) -> float:
     def channel(value: int) -> float:
         srgb = value / 255
         return srgb / 12.92 if srgb <= 0.03928 else ((srgb + 0.055) / 1.055) ** 2.4
@@ -72,11 +82,11 @@ def _luminance(rgb: Rgb) -> float:
 
 def contrast_ratio(first: str, second: str) -> float:
     """WCAG contrast ratio between two hex colors, from 1.0 to 21.0."""
-    lighter, darker = sorted((_luminance(_rgb(first)), _luminance(_rgb(second))))
+    lighter, darker = sorted((luminance(_rgb(first)), luminance(_rgb(second))))
     return (darker + 0.05) / (lighter + 0.05)
 
 
-def _shift(origin: Rgb, toward: Rgb, amount: float) -> Rgb:
+def shift(origin: Rgb, toward: Rgb, amount: float) -> Rgb:
     """Move `origin` along the line to `toward`; a negative amount overshoots back."""
     return tuple(max(0, min(255, round(o + (t - o) * amount))) for o, t in zip(origin, toward))
 
@@ -89,10 +99,10 @@ def _derive_bg_dark(base00: Rgb, base01: Rgb) -> Rgb:
     one -- it is the recessed surface the author chose, so use it. Otherwise
     base16 offers nothing below base00 and the step has to be extrapolated.
     """
-    if _luminance(base01) < _luminance(base00):
+    if luminance(base01) < luminance(base00):
         return base01
 
-    shifted = _shift(base00, base01, -_BG_DARK_STEP)
+    shifted = shift(base00, base01, -_BG_DARK_STEP)
     if max(abs(a - b) for a, b in zip(shifted, base00)) < _MIN_SURFACE_DELTA:
         return base01  # base00 sits at the end of the ramp; nothing below it
     return shifted
@@ -100,7 +110,7 @@ def _derive_bg_dark(base00: Rgb, base01: Rgb) -> Rgb:
 
 def _derive_gutter(base02: Rgb, base03: Rgb) -> Rgb:
     """Borders and rules sit between the selection background and comments."""
-    return _shift(base02, base03, 0.5)
+    return shift(base02, base03, 0.5)
 
 
 @lru_cache(maxsize=None)
@@ -118,29 +128,76 @@ def read_scheme(path: Path) -> dict[str, Rgb]:
     return {slot: _rgb(palette[slot]) for slot in BASE16_SLOTS}
 
 
-def resolve_theme(theme_name: str) -> str | None:
-    """Scheme file stem for a configured theme name, or None if not installed.
+def register_terminal_scheme(
+    scheme: dict[str, Rgb] | None, light_background: bool | None = None
+) -> None:
+    """Make the terminal's reported palette selectable, or drop it with None.
 
-    Theme names are the upstream base16 slugs verbatim, so this is just an
-    existence check.
+    `light_background` steers the fallback even when the palette itself was
+    rejected, so a light terminal never falls back to a dark scheme.
     """
+    global _terminal_scheme, _terminal_light
+    _terminal_scheme = scheme
+    _terminal_light = light_background
+
+
+def default_theme() -> str:
+    """The scheme file shown when nothing better is available."""
+    return LIGHT_FALLBACK_THEME if _terminal_light else DARK_FALLBACK_THEME
+
+
+def is_known_theme(theme_name: str) -> bool:
+    """Whether a config value names a theme at all, installed or not yet read."""
+    return theme_name == TERMINAL_THEME or (THEMES_DIR / f"{theme_name}.yaml").exists()
+
+
+def resolve_theme(theme_name: str) -> str | None:
+    """Theme name usable right now, or None if not installed or not reported.
+
+    Scheme names are the upstream base16 slugs verbatim, so for those this is
+    just an existence check. The terminal theme exists only once the terminal
+    has answered the colour query.
+    """
+    if theme_name == TERMINAL_THEME:
+        return TERMINAL_THEME if _terminal_scheme else None
     return theme_name if (THEMES_DIR / f"{theme_name}.yaml").exists() else None
+
+
+def effective_theme(theme_name: str) -> str:
+    """The theme actually shown for a configured name, after any fallback."""
+    return resolve_theme(theme_name) or default_theme()
 
 
 def load_palette(theme_name: str) -> dict[str, str]:
     """Return the TCSS variables for a theme, keyed without the leading '$'."""
     resolved = resolve_theme(theme_name)
     if resolved is None:
-        logger.warning(f"Theme '{theme_name}' not found, falling back to '{DEFAULT_THEME}'")
-        resolved = DEFAULT_THEME
+        # The terminal staying silent is expected; a missing scheme file is not.
+        if theme_name != TERMINAL_THEME:
+            logger.warning(f"Theme '{theme_name}' not found, falling back to '{default_theme()}'")
+        resolved = default_theme()
 
-    scheme = read_scheme(THEMES_DIR / f"{resolved}.yaml")
-    palette = {var: _hex(scheme[slot]) for slot, var in SLOT_VARS.items()}
-    palette["bg-dark"] = _hex(_derive_bg_dark(scheme["base00"], scheme["base01"]))
-    palette["gutter"] = _hex(_derive_gutter(scheme["base02"], scheme["base03"]))
+    if resolved == TERMINAL_THEME:
+        scheme = _terminal_scheme
+    else:
+        scheme = read_scheme(THEMES_DIR / f"{resolved}.yaml")
+    return palette_from_scheme(scheme)
+
+
+def palette_from_scheme(scheme: dict[str, Rgb]) -> dict[str, str]:
+    """Map 16 base16 slots onto the TCSS variables, deriving the two extras."""
+    palette = {var: hex_color(scheme[slot]) for slot, var in SLOT_VARS.items()}
+    palette["bg-dark"] = hex_color(_derive_bg_dark(scheme["base00"], scheme["base01"]))
+    palette["gutter"] = hex_color(_derive_gutter(scheme["base02"], scheme["base03"]))
     return palette
 
 
 def list_themes() -> list[str]:
-    """Names of every installed theme, for config validation and the picker."""
+    """Names of every installed scheme file."""
     return sorted(path.stem for path in THEMES_DIR.glob("*.yaml"))
+
+
+def selectable_themes() -> list[str]:
+    """What the pickers offer: the terminal first, when it answered, then the files."""
+    names = list_themes()
+    return [TERMINAL_THEME, *names] if _terminal_scheme else names

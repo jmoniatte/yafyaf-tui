@@ -22,7 +22,7 @@ from .config import DEFAULT_URL, Config, TokenStore, load_config, save_theme
 from .editor import Draft, DraftError, EditorError, Entry
 from .screens import ConfirmDialog, LoginScreen, SettingsScreen, ThemePicker
 from .shortcuts import GENERAL
-from .theme import load_palette
+from .theme import effective_theme, load_palette
 from .widgets import AppHeader, HeaderNotification, NewYafRequested, YafOpened, YafsView
 
 STYLES_DIR = Path(__file__).parent / "styles"
@@ -75,7 +75,7 @@ class YafyafApp(App):
 
     def action_show_themes(self) -> None:
         """Browse themes, applying each one as the cursor moves."""
-        self.push_screen(ThemePicker(self.config.theme), callback=self._theme_chosen)
+        self.push_screen(ThemePicker(effective_theme(self.config.theme)), callback=self._theme_chosen)
 
     def _theme_chosen(self, theme_name: str | None) -> None:
         if theme_name is not None:
@@ -83,7 +83,7 @@ class YafyafApp(App):
 
     def set_theme(self, theme_name: str) -> None:
         """Apply a theme and remember it for next launch."""
-        if theme_name == self.config.theme:
+        if effective_theme(theme_name) == effective_theme(self.config.theme):
             return
         self.apply_theme(theme_name)
         self.config.theme = theme_name

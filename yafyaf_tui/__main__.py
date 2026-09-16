@@ -5,6 +5,8 @@ from . import __version__
 from .app import YafyafApp
 from .commands import new_yaf
 from .config import DEFAULT_URL, URL_ENV_VAR, TokenStore, resolve_url
+from .terminal_theme import query_terminal
+from .theme import register_terminal_scheme
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -27,6 +29,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     if args.command == "new":
         raise SystemExit(new_yaf(url, TokenStore.for_url(url)))
 
+    # Must run before Textual takes the tty; a silent terminal just yields None.
+    terminal = query_terminal()
+    register_terminal_scheme(terminal.scheme, terminal.light_background)
     app = YafyafApp(url=url)
     app.run()
 

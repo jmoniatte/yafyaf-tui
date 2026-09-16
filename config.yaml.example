@@ -1,8 +1,9 @@
 # ~/.config/yafyaf-tui/config.yaml (optional)
 
-# Color theme: any base16 scheme in yafyaf_tui/styles/themes/, by its upstream
-# slug. Press t in the app to browse them; the choice is written back here.
-theme: onedark
+# Color theme: terminal (read from the terminal itself) or any base16 scheme
+# in yafyaf_tui/styles/themes/, by its upstream slug. Press t in the app to
+# browse them; the choice is written back here.
+theme: terminal
 
 # The server is not configured here: yaf talks to https://yafyaf.com unless
 # started with --url or with YAFYAF_URL set. Tokens are saved per server in
