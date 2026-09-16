@@ -1,17 +1,21 @@
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from difflib import get_close_matches
 from pathlib import Path
 from urllib.parse import urlsplit
 
 import yaml
 
+from .theme import DEFAULT_THEME, list_themes, resolve_theme
+
 CONFIG_DIR = Path.home() / ".config" / "yafyaf-tui"
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
 TOKENS_DIR = CONFIG_DIR / "tokens"
-DEFAULT_THEME = "onedark"
 DEFAULT_URL = "https://yafyaf.com"
 URL_ENV_VAR = "YAFYAF_URL"
+_THEME_LINE = re.compile(r"^theme:.*$", re.MULTILINE)
 
 
 @dataclass
@@ -38,8 +42,27 @@ def load_config(path: Path = CONFIG_FILE) -> Config:
         config.warnings.append("Config file must contain a mapping of settings")
         return config
 
-    config.theme = str(data.get("theme") or DEFAULT_THEME)
+    theme = data.get("theme")
+    if isinstance(theme, str) and theme.strip():
+        if resolve_theme(theme.strip()):
+            config.theme = theme.strip()
+        else:
+            # Too many themes to list; a near-miss is the useful hint.
+            near = get_close_matches(theme.strip(), list_themes(), n=3)
+            hint = f" Did you mean: {', '.join(near)}?" if near else ""
+            config.warnings.append(
+                f"theme: '{theme.strip()}' is not installed, using '{config.theme}'.{hint}"
+            )
     return config
+
+
+def save_theme(theme: str, path: Path = CONFIG_FILE) -> None:
+    """Persist the theme, leaving the rest of a hand-written config untouched."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = f"theme: {theme}"
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    updated, replaced = _THEME_LINE.subn(line, text, count=1)
+    path.write_text(updated if replaced else f"{line}\n{text}", encoding="utf-8")
 
 
 def resolve_url(flag: str | None = None, environ: Mapping[str, str] = os.environ) -> str:

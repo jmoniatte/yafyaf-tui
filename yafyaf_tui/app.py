@@ -1,5 +1,4 @@
 import asyncio
-import re
 from datetime import date
 from pathlib import Path
 
@@ -19,28 +18,14 @@ from .api import (
     Yaf,
     YafyafClient,
 )
-from .config import DEFAULT_URL, Config, TokenStore, load_config
+from .config import DEFAULT_URL, Config, TokenStore, load_config, save_theme
 from .editor import Draft, DraftError, EditorError, Entry
-from .screens import ConfirmDialog, HelpScreen, LoginScreen
+from .screens import ConfirmDialog, LoginScreen, SettingsScreen, ThemePicker
 from .shortcuts import GENERAL
+from .theme import load_palette
 from .widgets import AppHeader, HeaderNotification, NewYafRequested, YafOpened, YafsView
 
 STYLES_DIR = Path(__file__).parent / "styles"
-
-
-def _theme_path(theme: str) -> Path:
-    theme_path = STYLES_DIR / "themes" / f"{theme}.tcss"
-    return theme_path if theme_path.exists() else STYLES_DIR / "themes" / "onedark.tcss"
-
-
-def build_css(theme: str) -> str:
-    """Concatenate theme variables with base rules so the variables are in scope."""
-    return _theme_path(theme).read_text() + "\n" + (STYLES_DIR / "base.tcss").read_text()
-
-
-def theme_colors(theme: str) -> dict[str, str]:
-    """The theme's $name: #hex variables, for text styled in Python where TCSS variables do not reach."""
-    return dict(re.findall(r"\$([\w-]+):\s*(#[0-9a-fA-F]{6})", _theme_path(theme).read_text()))
 
 
 class YafyafApp(App):
@@ -49,7 +34,8 @@ class YafyafApp(App):
     TITLE = "YafYaf"
 
     BINDINGS = [
-        Binding("question_mark", "help", "Help", key_display="?", group=GENERAL),
+        Binding("question_mark", "settings", "Settings", key_display="?", group=GENERAL),
+        Binding("t", "show_themes", "Change theme", group=GENERAL),
         Binding("q", "quit", "Quit", group=GENERAL),
     ]
 
@@ -64,23 +50,52 @@ class YafyafApp(App):
         self.token_store = token_store if token_store is not None else TokenStore.for_url(url)
         self.client = YafyafClient(url, self.token_store.load())
         self.user: User | None = None
-        self.CSS = build_css(self.config.theme)
+        # The palette is served from get_css_variables rather than baked into
+        # CSS, so apply_theme can swap it without restarting.
+        self._palette = load_palette(self.config.theme)
+        self.CSS = (STYLES_DIR / "base.tcss").read_text()
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        sign_out = Button("Sign out", id="btn-sign-out")
-        # Clicking must not pull focus off the list, which the dialog would then hand back to the button
-        sign_out.can_focus = False
-        sign_out.display = False
-        yield AppHeader(self.url, sign_out)
-        colors = theme_colors(self.config.theme)
-        yield YafsView(
-            self.client,
-            date_color=colors["comment"],
-            link_color=colors["blue"],
-            heading_color=colors["yellow"],
-        )
+        yield AppHeader(self.url)
+        yield YafsView(self.client, **self._rich_colors())
         yield Static("", id="status-line")
+
+    def _rich_colors(self) -> dict[str, str]:
+        """The palette entries the yaf list renders through Rich, where TCSS variables do not reach."""
+        return {
+            "date_color": self._palette["comment"],
+            "link_color": self._palette["blue"],
+            "heading_color": self._palette["yellow"],
+        }
+
+    def get_css_variables(self) -> dict[str, str]:
+        """Serve the base16 palette to the stylesheet alongside Textual's own."""
+        return {**super().get_css_variables(), **self._palette}
+
+    def action_show_themes(self) -> None:
+        """Browse themes, applying each one as the cursor moves."""
+        self.push_screen(ThemePicker(self.config.theme), callback=self._theme_chosen)
+
+    def _theme_chosen(self, theme_name: str | None) -> None:
+        if theme_name is not None:
+            self.set_theme(theme_name)
+
+    def set_theme(self, theme_name: str) -> None:
+        """Apply a theme and remember it for next launch."""
+        if theme_name == self.config.theme:
+            return
+        self.apply_theme(theme_name)
+        self.config.theme = theme_name
+        save_theme(theme_name)
+        self.notify(f"Theme set to {theme_name}")
+
+    def apply_theme(self, theme_name: str) -> None:
+        """Swap the palette and repaint in place."""
+        self._palette = load_palette(theme_name)
+        self.refresh_css()
+        # refresh_css only re-applies TCSS; the list bakes its colors into Rich text
+        self.query_one(YafsView).set_colors(**self._rich_colors())
 
     def notify(
         self,
@@ -155,15 +170,15 @@ class YafyafApp(App):
 
     def _signed_in_as(self, user: User) -> None:
         self._set_status("")
-        self.query_one("#btn-sign-out", Button).display = True
         self.query_one(YafsView).load()
 
-    @on(Button.Pressed, "#btn-sign-out")
-    def _confirm_sign_out(self) -> None:
-        if self.user is None:
+    def confirm_sign_out(self) -> None:
+        """Ask before signing out; the settings screen is the way in."""
+        if not self.client.token:
             return
+        who = self.user.email if self.user else self.url
         dialog = ConfirmDialog(
-            f"You are signed in as {self.user.email}",
+            f"You are signed in as {who}",
             title="Sign Out",
             confirm_label="Sign out",
             cancel_label="Cancel",
@@ -179,7 +194,6 @@ class YafyafApp(App):
         self.token_store.clear()
         self.client.token = ""
         self.user = None
-        self.query_one("#btn-sign-out", Button).display = False
         self.query_one(YafsView).reset()
         self._ask_login()
 
@@ -305,5 +319,6 @@ class YafyafApp(App):
             timeout=30,
         )
 
-    def action_help(self) -> None:
-        self.push_screen(HelpScreen())
+    @on(Button.Pressed, "#btn-settings")
+    def action_settings(self) -> None:
+        self.push_screen(SettingsScreen())

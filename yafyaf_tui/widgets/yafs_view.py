@@ -77,6 +77,11 @@ class YafsTable(DataTable):
         self.update_cell(yaf.id, "date", date_cell)
         self.update_cell(yaf.id, "summary", summary_cell)
 
+    def set_colors(self, date_color: str, link_color: str, heading_color: str) -> None:
+        self._date_color = date_color
+        self._link_color = link_color
+        self._heading_color = heading_color
+
     def clear(self, columns: bool = False) -> "YafsTable":
         self._summaries = {}
         self._hovered = None
@@ -195,6 +200,14 @@ class YafsView(Vertical):
         for label in self.query("#yafs-header-date, #yafs-header-summary"):
             label.styles.padding = (0, table.cell_padding)
         table.focus()
+
+    def set_colors(self, date_color: str, link_color: str, heading_color: str) -> None:
+        """Re-render the rows against a new palette; their colors are baked into Rich text."""
+        self._colors = {"date_color": date_color, "link_color": link_color, "heading_color": heading_color}
+        table = self.query_one(YafsTable)
+        table.set_colors(**self._colors)
+        for yaf in self.yafs:
+            table.update_yaf(yaf)
 
     def load(self, query: str | None = None) -> None:
         """Start over from page one, optionally with a new search."""

@@ -26,13 +26,13 @@ yaf --version
 
 On first start the TUI asks for your YafYaf email and password, exchanges them for an API
 token, and saves the token to `~/.config/yafyaf-tui/tokens/yafyaf.com` (readable by you only).
-To log out, press Sign out at the top right; the TUI forgets the token and asks for
-credentials again.
+To log out, open Settings (the button at the top right, or `?`) and press Sign out; the TUI
+forgets the token and asks for credentials again.
 
 The list shows your yafs newest first and loads more as you scroll. Press `/` to search
 (full-text, any word matches), `Enter` to run the search, `Escape` to go back to the list,
-`Enter` to edit a yaf, `n` (or the New Yaf button) to write a new one, `r` to reload, `?` for
-all shortcuts, and `q` to quit.
+`Enter` to edit a yaf, `n` (or the New Yaf button) to write a new one, `r` to reload, `?` (or
+the Settings button) for the theme, your account and every shortcut, and `q` to quit.
 
 A yaf opens as a markdown file in `$EDITOR` (`vi` if unset), with its date in front matter:
 
@@ -62,11 +62,17 @@ with `yaf` first.
 
 ## Configuration
 
-Nothing is required. To change the color theme, create `~/.config/yafyaf-tui/config.yaml`:
+Nothing is required. The theme is in Settings, or press `t` to browse them full
+screen: each one applies as the cursor moves, `enter` keeps it and `esc` restores the one you
+started on. The choice is written to
+`~/.config/yafyaf-tui/config.yaml`, which you can also edit by hand:
 
 ```yaml
-theme: onelight
+theme: one-light
 ```
+
+Themes are [base16 schemes](https://github.com/tinted-theming/schemes) and are named by their
+upstream slug.
 
 ### Talking to another server
 

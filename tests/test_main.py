@@ -27,7 +27,8 @@ from yafyaf_tui.api import (
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.commands import new_yaf
 from yafyaf_tui.config import DEFAULT_URL, Config, TokenStore
-from yafyaf_tui.screens import ConfirmDialog, HelpScreen, LoginScreen
+from yafyaf_tui.screens import ConfirmDialog, LoginScreen, SettingsScreen
+from yafyaf_tui.theme import load_palette
 from yafyaf_tui.widgets import HeaderNotification, YafsTable, YafsView
 from yafyaf_tui.widgets.yafs_view import DATE_WIDTH, summary_text
 
@@ -220,7 +221,7 @@ class AppTest(unittest.TestCase):
     def _app(self, url: str = "http://localhost:3000") -> YafyafApp:
         return YafyafApp(url, Config(), self.store)
 
-    def test_help_screen_documents_every_binding(self) -> None:
+    def test_settings_screen_documents_every_binding(self) -> None:
         async def exercise() -> None:
             self.store.save("good")
             app = self._app()
@@ -229,7 +230,7 @@ class AppTest(unittest.TestCase):
                     await settle(app, pilot)
                     await pilot.press("?")
                     await pilot.pause()
-                    self.assertIsInstance(app.screen, HelpScreen)
+                    self.assertIsInstance(app.screen, SettingsScreen)
                     keys = {static.content for static in app.screen.query(".shortcut-key")}
                     expected = {
                         shortcut.key
@@ -242,7 +243,18 @@ class AppTest(unittest.TestCase):
                     self.assertTrue({"?", "q", "n", "/", "r", "j", "k", "enter"} <= keys)
                     await pilot.press("escape")
                     await pilot.pause()
-                    self.assertNotIsInstance(app.screen, HelpScreen)
+                    self.assertNotIsInstance(app.screen, SettingsScreen)
+
+                    # The header button is the other way in, and it must not take focus off the list
+                    button = app.query_one("#btn-settings", Button)
+                    self.assertIs(button.parent, app.query_one("#app-header"))
+                    self.assertEqual(button.region.right, app.query_one("#app-header").content_region.right)
+                    await pilot.click("#btn-settings")
+                    await pilot.pause()
+                    self.assertIsInstance(app.screen, SettingsScreen)
+                    await pilot.press("escape")
+                    await pilot.pause()
+                    self.assertTrue(app.query_one(YafsTable).has_focus)
 
         asyncio.run(exercise())
 
@@ -295,12 +307,13 @@ class AppTest(unittest.TestCase):
                     me.assert_called_once()
                     list_yafs.assert_called_once_with("", 1)
                     self.assertNotIsInstance(app.screen, LoginScreen)
-                    self.assertTrue(app.query_one("#btn-sign-out", Button).display)
+                    self.assertEqual(app.user, ME)
+                    self.assertFalse(app.query("#btn-sign-out"))  # it lives in Settings now
                     table = app.query_one(YafsTable)
                     self.assertEqual(table.row_count, 2)
                     self.assertEqual(row_text(table, 0), ["2026-09-13", "First yaf"])
                     date_cell = table.get_row_at(0)[0]
-                    self.assertEqual(str(date_cell.style), "#5c6370")
+                    self.assertEqual(str(date_cell.style), load_palette("onedark")["comment"])
                     self.assertEqual(app.query_one("#yafs-status", Static).content, "2 yafs")
                     # The count shares the column header line, right-aligned
                     status = app.query_one("#yafs-status", Static)
@@ -338,12 +351,12 @@ class AppTest(unittest.TestCase):
                     self.assertNotIsInstance(app.screen, LoginScreen)
                     self.assertEqual(self.store.load(), "fresh")
                     self.assertEqual(app.client.token, "fresh")
-                    self.assertTrue(app.query_one("#btn-sign-out", Button).display)
+                    self.assertEqual(app.user, ME)
                     self.assertEqual(app.query_one(YafsTable).row_count, 2)
 
         asyncio.run(exercise())
 
-    def test_sign_out_button_confirms_then_forgets_the_token_and_asks_login(self) -> None:
+    def test_settings_signs_out_after_confirming_and_forgets_the_token(self) -> None:
         async def exercise() -> None:
             self.store.save("good")
             app = self._app()
@@ -352,13 +365,15 @@ class AppTest(unittest.TestCase):
             with patched_me(), patched_list(), logout as revoke:
                 async with app.run_test(size=(100, 34)) as pilot:
                     await settle(app, pilot)
-                    sign_out = app.query_one("#btn-sign-out", Button)
-                    self.assertIs(sign_out.parent, app.query_one("#app-header"))
-                    self.assertEqual(sign_out.region.right, app.query_one("#app-header").content_region.right)
+                    await pilot.press("?")
+                    await pilot.pause()
+                    self.assertEqual(app.screen.query_one("#settings-email", Static).content, ME.email)
 
                     await pilot.click("#btn-sign-out")
                     await settle(app, pilot)
+                    # Settings closes first, so the confirmation is not stacked on top of it
                     self.assertIsInstance(app.screen, ConfirmDialog)
+                    self.assertEqual(len(app.screen_stack), 2)
                     message = app.screen.query_one("#dialog-message", Static).content
                     self.assertEqual(message, "You are signed in as me@example.com")
                     await pilot.press("escape")
@@ -367,6 +382,8 @@ class AppTest(unittest.TestCase):
                     self.assertEqual(self.store.load(), "good")
                     self.assertTrue(app.query_one(YafsTable).has_focus)
 
+                    await pilot.press("?")
+                    await pilot.pause()
                     await pilot.click("#btn-sign-out")
                     await settle(app, pilot)
                     await pilot.click("#confirm-btn")
@@ -377,9 +394,37 @@ class AppTest(unittest.TestCase):
                     self.assertEqual(app.client.token, "")
                     self.assertIsNone(app.user)
                     self.assertIsInstance(app.screen, LoginScreen)
-                    self.assertFalse(sign_out.display)
                     self.assertEqual(app.query_one(YafsTable).row_count, 0)
                     self.assertEqual(app.query_one("#yafs-status", Static).content, "")
+
+        asyncio.run(exercise())
+
+    def test_an_unreachable_server_still_offers_sign_out_to_clear_the_token(self) -> None:
+        """The stored token, not the user, decides: a token whose owner cannot be fetched is the one worth clearing."""
+
+        async def exercise() -> None:
+            self.store.save("good")
+            app = self._app()
+            unreachable = ApiConnectionError("Cannot reach http://localhost:3000")
+            with patch("yafyaf_tui.api.client.YafyafClient.me", side_effect=unreachable), \
+                 patch("yafyaf_tui.api.client.YafyafClient.logout", side_effect=unreachable):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    self.assertIsNone(app.user)
+                    await pilot.press("?")
+                    await pilot.pause()
+                    email = app.screen.query_one("#settings-email", Static).content
+                    self.assertEqual(email, "Signed in, server unreachable")
+
+                    await pilot.click("#btn-sign-out")
+                    await settle(app, pilot)
+                    self.assertIsInstance(app.screen, ConfirmDialog)
+                    message = app.screen.query_one("#dialog-message", Static).content
+                    self.assertEqual(message, "You are signed in as http://localhost:3000")
+                    await pilot.click("#confirm-btn")
+                    await settle(app, pilot)
+                    self.assertEqual(self.store.load(), "")
+                    self.assertIsInstance(app.screen, LoginScreen)
 
         asyncio.run(exercise())
 

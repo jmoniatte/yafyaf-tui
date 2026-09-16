@@ -61,7 +61,7 @@ ModalScreen {
     color: $yellow;
 }
 
-#btn-sign-out {
+#btn-settings {
     width: auto;
     min-width: 0;
     height: 1;
@@ -72,7 +72,7 @@ ModalScreen {
     color: $fg;
 }
 
-#btn-sign-out:hover {
+#btn-settings:hover {
     background: $comment 50%;
 }
 
@@ -199,15 +199,15 @@ HeaderNotification.-error {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   HELP SCREEN
+   SETTINGS SCREEN
    ═══════════════════════════════════════════════════════════════════════ */
 
-HelpScreen {
+SettingsScreen {
     align: center top;
     background: $bg 80%;
 }
 
-HelpScreen > Vertical {
+SettingsScreen > Vertical {
     width: auto;
     min-width: 64;
     max-width: 70;
@@ -219,82 +219,154 @@ HelpScreen > Vertical {
     margin-top: 4;
 }
 
-HelpScreen Static {
+SettingsScreen Static {
     color: $fg;
 }
 
-HelpScreen #dialog-title {
+SettingsScreen #dialog-title {
     text-style: bold;
     color: $blue;
     border-bottom: ascii $gutter;
 }
 
-HelpScreen #title-separator {
+SettingsScreen #title-separator {
     height: 1;
 }
 
-HelpScreen .section-title {
+SettingsScreen .settings-row {
+    height: 1;
+    margin-bottom: 1;
+    align: left middle;
+}
+
+SettingsScreen .settings-label {
+    width: 10;
+    color: $comment;
+}
+
+SettingsScreen #theme-selector {
+    width: 1fr;
+    height: 1;
+}
+
+SettingsScreen #theme-selector SelectCurrent {
+    background: transparent;
+    border: none !important;
+    padding: 0;
+    color: $fg;
+}
+
+SettingsScreen #theme-selector SelectCurrent:hover,
+SettingsScreen #theme-selector:focus SelectCurrent {
+    color: $blue;
+}
+
+SettingsScreen #theme-selector SelectOverlay {
+    background: $bg;
+    border: none;
+    max-height: 12;
+    scrollbar-size: 0 0;
+}
+
+SettingsScreen #theme-selector SelectOverlay > .option-list--option-highlighted {
+    background: $bg-light;
+    color: $fg;
+    text-style: none;
+}
+
+SettingsScreen #settings-email {
+    width: 1fr;
+}
+
+SettingsScreen #btn-sign-out {
+    width: auto;
+    min-width: 0;
+    height: 1;
+    border: none;
+    margin: 0 0 0 2;
+    padding: 0 2;
+    background: $comment 30%;
+    color: $fg;
+}
+
+SettingsScreen #btn-sign-out:hover {
+    background: $comment 50%;
+}
+
+SettingsScreen #btn-sign-out:focus {
+    background: $blue;
+    color: $bg-dark;
+    text-style: bold;
+}
+
+SettingsScreen #settings-separator {
+    height: 1;
+    color: $comment;
+    margin-bottom: 1;
+}
+
+SettingsScreen .section-title {
     text-style: bold;
     color: $fg;
     border-bottom: ascii $gutter;
 }
 
-HelpScreen #help-sections {
+SettingsScreen #shortcuts-sections {
     height: auto;
 }
 
-HelpScreen .help-section {
+SettingsScreen .shortcuts-section {
     height: auto;
 }
 
-HelpScreen #help-actions {
+SettingsScreen #shortcuts-actions {
     width: 32;
     margin-right: 2;
 }
 
-HelpScreen #help-general {
+SettingsScreen #shortcuts-general {
     width: 32;
 }
 
-HelpScreen .shortcut-row {
+SettingsScreen .shortcut-row {
     height: 1;
 }
 
-HelpScreen .shortcut-key {
+SettingsScreen .shortcut-key {
     width: 8;
     color: $green;
 }
 
-HelpScreen .shortcut-desc {
+SettingsScreen .shortcut-desc {
     color: $fg;
 }
 
-HelpScreen #help-footer-spacer {
+SettingsScreen #settings-footer-spacer {
     height: 1;
 }
 
-HelpScreen #help-footer {
+SettingsScreen #settings-footer {
     height: 1;
     align: right middle;
 }
 
-HelpScreen #help-footer .spacer {
+SettingsScreen #settings-footer .spacer {
     width: 1fr;
 }
 
-HelpScreen #help-version {
+SettingsScreen #settings-version {
     width: auto;
     margin-left: 1;
     color: $comment;
 }
 
-HelpScreen #help-repository {
+SettingsScreen #settings-repository {
     width: auto;
     color: $blue;
     background: transparent;
 }
 
-HelpScreen #help-repository:hover {
+SettingsScreen #settings-repository:hover {
     color: $blue;
     text-style: underline;
     background: transparent;
@@ -464,4 +536,61 @@ LoginScreen #login-error {
     min-height: 1;
     color: $red;
     margin-top: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   THEME PICKER
+   ═══════════════════════════════════════════════════════════════════════ */
+
+ThemePicker {
+    align: center top;
+    background: $bg 80%;
+}
+
+ThemePicker > Vertical {
+    width: 54;
+    height: 1fr;
+    max-height: 100%;
+    margin-top: 2;
+    margin-bottom: 2;
+}
+
+ThemePicker #theme-filter {
+    width: 1fr;
+    height: 2;
+    margin: 0 0 1 0;
+    padding: 0;
+    background: transparent;
+    color: $fg;
+    border: none !important;
+    border-bottom: solid $gutter !important;
+}
+
+ThemePicker #theme-filter:focus {
+    border-bottom: solid $blue !important;
+}
+
+ThemePicker #theme-table {
+    height: 1fr;
+    background: transparent;
+    border: none;
+    color: $fg;
+    scrollbar-size: 0 0;
+}
+
+ThemePicker #theme-table > .datatable--cursor {
+    background: $bg-light;
+    color: $fg;
+    text-style: none;
+}
+
+ThemePicker #theme-table > .datatable--hover {
+    background: transparent;
+}
+
+ThemePicker #theme-hint {
+    color: $comment;
+    margin-top: 1;
+    border-top: ascii $gutter;
+    padding-top: 1;
 }

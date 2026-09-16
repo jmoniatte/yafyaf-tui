@@ -1,6 +1,7 @@
 # ~/.config/yafyaf-tui/config.yaml (optional)
 
-# Color theme: onedark or onelight
+# Color theme: any base16 scheme in yafyaf_tui/styles/themes/, by its upstream
+# slug. Press t in the app to browse them; the choice is written back here.
 theme: onedark
 
 # The server is not configured here: yaf talks to https://yafyaf.com unless

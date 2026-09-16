@@ -3,20 +3,47 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from yafyaf_tui.config import DEFAULT_URL, Config, TokenStore, load_config, resolve_url
+from yafyaf_tui.config import DEFAULT_URL, Config, TokenStore, load_config, resolve_url, save_theme
 
 
 class LoadConfigTest(unittest.TestCase):
     def test_reads_theme_and_treats_missing_file_as_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yaml"
-            path.write_text("theme: onelight\n")
+            path.write_text("theme: one-light\n")
             config = load_config(path)
-        self.assertEqual(config.theme, "onelight")
+        self.assertEqual(config.theme, "one-light")
         self.assertEqual(config.warnings, [])
 
         missing = load_config(Path("/nonexistent/config.yaml"))
         self.assertEqual(missing, Config())
+
+    def test_a_theme_that_is_not_installed_warns_with_a_near_miss(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.yaml"
+            path.write_text("theme: onelight\n")
+            config = load_config(path)
+        self.assertEqual(config.theme, Config().theme)
+        self.assertEqual(len(config.warnings), 1)
+        self.assertIn("'onelight' is not installed", config.warnings[0])
+        self.assertIn("one-light", config.warnings[0])
+
+
+class SaveThemeTest(unittest.TestCase):
+    def test_replaces_the_theme_line_and_leaves_the_rest_of_the_file_alone(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.yaml"
+            save_theme("dracula", path)
+            self.assertEqual(path.read_text(), "theme: dracula\n")
+
+            path.write_text("# my config\ntheme: onedark\nsomething: else\n")
+            save_theme("dracula", path)
+            self.assertEqual(path.read_text(), "# my config\ntheme: dracula\nsomething: else\n")
+            self.assertEqual(load_config(path).theme, "dracula")
+
+            path.write_text("something: else\n")
+            save_theme("nord", path)
+            self.assertEqual(path.read_text(), "theme: nord\nsomething: else\n")
 
     def test_invalid_file_falls_back_to_defaults_with_a_warning(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
