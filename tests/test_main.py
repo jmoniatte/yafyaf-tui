@@ -42,7 +42,7 @@ ONE_PAGE = YafPage(yafs=YAFS, records_count=2)
 
 @contextlib.contextmanager
 def patched_editor(editor: str):
-    """Run editor in place of $EDITOR; yields how many times the app resumed after it."""
+    """Run editor in place of the user's editor; yields how many times the app resumed after it."""
     resumed = []
 
     @contextlib.contextmanager
@@ -52,12 +52,12 @@ def patched_editor(editor: str):
         resumed.append(True)
 
     # The headless test driver cannot suspend, and these editors do not need the terminal
-    with patch.dict("os.environ", {"EDITOR": editor}), patch("yafyaf_tui.app.YafyafApp.suspend", suspend):
+    with patch.dict("os.environ", {"VISUAL": editor}), patch("yafyaf_tui.app.YafyafApp.suspend", suspend):
         yield resumed
 
 
 def python_editor(code: str) -> str:
-    """An $EDITOR command that runs Python on the draft, whose path is sys.argv[1]."""
+    """An editor command that runs Python on the draft, whose path is sys.argv[1]."""
     return shlex.join([sys.executable, "-c", code])
 
 
@@ -147,7 +147,7 @@ class NewYafTest(unittest.TestCase):
         )
         out, err = io.StringIO(), io.StringIO()
         with (
-            patch.dict("os.environ", {"EDITOR": python_editor(script)}),
+            patch.dict("os.environ", {"VISUAL": python_editor(script)}),
             patch("yafyaf_tui.api.client.YafyafClient.create_yaf", **create) as self.create_yaf,
             contextlib.redirect_stdout(out),
             contextlib.redirect_stderr(err),
@@ -205,7 +205,7 @@ class NewYafTest(unittest.TestCase):
 
         self.store.save("good")
         err = io.StringIO()
-        with patch.dict("os.environ", {"EDITOR": python_editor("raise SystemExit(3)")}), contextlib.redirect_stderr(err):
+        with patch.dict("os.environ", {"VISUAL": python_editor("raise SystemExit(3)")}), contextlib.redirect_stderr(err):
             self.assertEqual(new_yaf("http://localhost:3000", self.store), 1)
         self.assertIn("exited with status 3", err.getvalue())
 

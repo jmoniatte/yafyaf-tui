@@ -229,7 +229,7 @@ class YafyafApp(App):
         self._edit_yaf(None)
 
     def _edit_yaf(self, yaf: Yaf | None) -> None:
-        """Edit yaf in $EDITOR, or write a new one when yaf is None."""
+        """Edit yaf in $VISUAL or $EDITOR, or write a new one when yaf is None."""
         if yaf is None:
             draft = Draft.create("", date.today(), "new")
         else:

@@ -34,7 +34,7 @@ The list shows your yafs newest first and loads more as you scroll. Press `/` to
 `Enter` to edit a yaf, `n` (or the New Yaf button) to write a new one, `r` to reload, `?` (or
 the Settings button) for the theme, your account and every shortcut, and `q` to quit.
 
-A yaf opens as a markdown file in `$EDITOR` (`vi` if unset), with its date in front matter:
+A yaf opens as a markdown file in `$VISUAL` or `$EDITOR` (`vi` if neither is set), with its date in front matter:
 
 ```markdown
 ---

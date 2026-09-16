@@ -1,4 +1,4 @@
-"""Edit a yaf in the user's $EDITOR as a markdown file with its date in front matter.
+"""Edit a yaf in the user's $VISUAL or $EDITOR as a markdown file with its date in front matter.
 
 The front matter exists only in the file; the API gets the date and content as separate fields.
 """
@@ -35,8 +35,9 @@ class Entry:
 
 
 def editor_command() -> list[str]:
-    # $EDITOR may carry arguments, e.g. "code --wait"
-    return shlex.split(os.environ.get("EDITOR") or DEFAULT_EDITOR)
+    # $VISUAL wins by convention; either may carry arguments, e.g. "code --wait"
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR") or DEFAULT_EDITOR
+    return shlex.split(editor)
 
 
 def _normalized(text: str) -> str:

@@ -9,7 +9,7 @@ from .editor import Draft, DraftError, EditorError
 
 
 def new_yaf(url: str, token_store: TokenStore, day: date | None = None) -> int:
-    """Write a new yaf in $EDITOR, dated day unless the front matter says otherwise; returns the exit code."""
+    """Write a new yaf in $VISUAL or $EDITOR, dated day unless the front matter says otherwise; returns the exit code."""
     token = token_store.load()
     if not token:
         print(f"Not logged in to {url}. Run yaf to log in first.", file=sys.stderr)

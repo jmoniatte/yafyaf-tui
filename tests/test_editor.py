@@ -1,7 +1,8 @@
 import unittest
 from datetime import date
+from unittest.mock import patch
 
-from yafyaf_tui.editor import Draft, DraftError, Entry, parse, render
+from yafyaf_tui.editor import Draft, DraftError, Entry, editor_command, parse, render
 
 DAY = date(2026, 9, 14)
 
@@ -46,3 +47,15 @@ class FrontMatterTest(unittest.TestCase):
         finally:
             draft.discard()
         self.assertFalse(draft.path.exists())
+
+
+class EditorCommandTest(unittest.TestCase):
+    def test_visual_wins_over_editor_and_both_may_carry_arguments(self) -> None:
+        cases = [
+            ({"VISUAL": "code --wait", "EDITOR": "nvim"}, ["code", "--wait"]),
+            ({"VISUAL": "", "EDITOR": "nvim"}, ["nvim"]),
+            ({"VISUAL": "", "EDITOR": ""}, ["vi"]),
+        ]
+        for environ, expected in cases:
+            with self.subTest(**environ), patch.dict("os.environ", environ):
+                self.assertEqual(editor_command(), expected)

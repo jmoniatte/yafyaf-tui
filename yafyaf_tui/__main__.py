@@ -19,7 +19,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         "command",
         nargs="?",
         choices=["new"],
-        help="new: write a new yaf in $EDITOR instead of opening the list",
+        help="new: write a new yaf in $VISUAL or $EDITOR instead of opening the list",
     )
     args = parser.parse_args(argv)
     url = resolve_url(args.url)
