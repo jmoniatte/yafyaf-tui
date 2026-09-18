@@ -1,6 +1,7 @@
 """Blocking HTTP client for the YafYaf REST API; call it from a worker thread in the TUI."""
 
 import json
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from http import HTTPStatus
@@ -102,10 +103,21 @@ class YafPage:
 
 
 class YafyafClient:
-    def __init__(self, base_url: str, token: str = "", timeout: float = DEFAULT_TIMEOUT) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        token: str = "",
+        timeout: float = DEFAULT_TIMEOUT,
+        on_response: Callable[[], None] | None = None,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.token = token
         self.timeout = timeout
+        # Every response carries a saying, and authenticated ones the user's score; on_response
+        # runs on the calling thread after they are updated
+        self.saying = ""
+        self.score: int | None = None
+        self.on_response = on_response
 
     def login(self, email: str, password: str) -> Session:
         """Exchange credentials for a token and remember it on this client."""
@@ -177,12 +189,23 @@ class YafyafClient:
         request = Request(url, data=payload, headers=headers, method=method)
         try:
             with urlopen(request, timeout=self.timeout) as response:
+                self._note_response(response.headers)
                 return _parse_json(response.read())
         except HTTPError as error:
+            self._note_response(error.headers)
             raise _api_error(error) from None
         except (URLError, TimeoutError, OSError) as error:
             reason = getattr(error, "reason", error)
             raise ApiConnectionError(f"Cannot reach {self.base_url}: {reason}") from None
+
+    def _note_response(self, headers: Mapping[str, str]) -> None:
+        self.saying = headers.get("x-yaf-says") or ""
+        try:
+            self.score = int(headers.get("x-yaf-score") or "")
+        except ValueError:
+            self.score = None
+        if self.on_response is not None:
+            self.on_response()
 
 
 def _yaf_fields(content: str, day: date) -> dict[str, str]:

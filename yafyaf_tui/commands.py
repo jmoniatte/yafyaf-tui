@@ -31,8 +31,9 @@ def new_yaf(url: str, token_store: TokenStore, day: date | None = None) -> int:
         print("Empty yaf, nothing saved.")
         return 0
 
+    client = YafyafClient(url, token)
     try:
-        YafyafClient(url, token).create_yaf(entry.content, entry.date)
+        client.create_yaf(entry.content, entry.date)
     except AuthenticationError:
         token_store.clear()
         return _not_saved("Your saved token was rejected. Run yaf to log in again.", draft)
@@ -40,6 +41,8 @@ def new_yaf(url: str, token_store: TokenStore, day: date | None = None) -> int:
         return _not_saved(error, draft)
     draft.discard()
     print(f"Saved yaf for {entry.date.isoformat()}.")
+    if client.saying:
+        print(client.saying)
     return 0
 
 

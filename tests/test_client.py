@@ -44,6 +44,10 @@ class FakeYafyaf(BaseHTTPRequestHandler):
         payload = json.dumps(body).encode() if body is not None else b""
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
+        # Like the real API: a saying on every response, the score only when the token was accepted
+        self.send_header("x-yaf-says", "There is always time.")
+        if status != 401 and self._authorized(FakeYafyaf.requests[-1]):
+            self.send_header("x-yaf-score", "94")
         self.end_headers()
         self.wfile.write(payload)
 
@@ -149,6 +153,19 @@ class ClientTest(unittest.TestCase):
         user = client.me()
         self.assertEqual(user.id, "abc")
         self.assertEqual(FakeYafyaf.requests[0]["headers"]["Authorization"], "Bearer good-token")
+
+    def test_saying_and_score_are_read_off_the_response_headers(self) -> None:
+        seen = []
+        client = YafyafClient(self.base_url, token="good-token", on_response=lambda: seen.append(client.score))
+        client.me()
+        self.assertEqual((client.saying, client.score), ("There is always time.", 94))
+
+        # The saying still arrives on a rejected token, the score does not
+        client.token = "stale"
+        with self.assertRaises(AuthenticationError):
+            client.me()
+        self.assertEqual((client.saying, client.score), ("There is always time.", None))
+        self.assertEqual(seen, [94, None])
 
     def test_rejected_or_missing_token_raises_authentication_error(self) -> None:
         with self.assertRaises(AuthenticationError) as raised:

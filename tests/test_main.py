@@ -23,6 +23,7 @@ from yafyaf_tui.api import (
     User,
     Yaf,
     YafPage,
+    YafyafClient,
 )
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.commands import new_yaf
@@ -30,7 +31,7 @@ from yafyaf_tui.config import DEFAULT_URL, Config, TokenStore
 from yafyaf_tui.screens import ConfirmDialog, LoginScreen, SettingsScreen
 from yafyaf_tui.terminal_theme import TerminalReport
 from yafyaf_tui.theme import load_palette
-from yafyaf_tui.widgets import HeaderNotification, YafsTable, YafsView
+from yafyaf_tui.widgets import Echo, HeaderNotification, YafsTable, YafsView
 from yafyaf_tui.widgets.yafs_view import DATE_WIDTH, summary_text
 
 ME = User(id="abc", email="me@example.com")
@@ -184,6 +185,18 @@ class NewYafTest(unittest.TestCase):
         self.assertEqual(out.strip(), "Empty yaf, nothing saved.")
         self.assertFalse(draft.exists())
 
+    def test_the_server_saying_is_printed_after_saving(self) -> None:
+        def note_saying(*args):
+            # What the real client does inside request
+            client.saying = "There is always time."
+            return Yaf(id="y3", content="A new yaf", date=date(2026, 9, 14))
+
+        client = YafyafClient("http://localhost:3000", "good")
+        with patch("yafyaf_tui.commands.YafyafClient", return_value=client):
+            code, out, _, _ = self._run("A new yaf\n", side_effect=note_saying)
+        self.assertEqual(code, 0)
+        self.assertEqual(out.splitlines(), ["Saved yaf for 2026-09-14.", "There is always time."])
+
     def test_failures_keep_the_draft_and_exit_with_an_error(self) -> None:
         code, _, err, draft = self._run("Lost?", side_effect=ApiConnectionError("Cannot reach it"))
         self.assertEqual(code, 1)
@@ -327,6 +340,110 @@ class AppTest(unittest.TestCase):
                     status = app.query_one("#yafs-status", Static)
                     self.assertEqual(status.region.y, app.query_one("#yafs-header-summary").region.y)
                     self.assertEqual(status.region.right, table.region.right)
+
+        asyncio.run(exercise())
+
+    def test_echo_shows_the_saying_and_score_from_the_last_response(self) -> None:
+        async def exercise() -> None:
+            self.store.save("good")
+            app = self._app()
+            app.animation_level = "none"  # No typewriter, so the text is there to read at once
+
+            def list_with_headers(*args):
+                # What the real client does inside request, on the worker thread
+                app.client.saying = "There is always time."
+                app.client.score = 94
+                app.client.on_response()
+                return ONE_PAGE
+
+            with patched_me(), patch("yafyaf_tui.api.client.YafyafClient.list_yafs", side_effect=list_with_headers):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    saying = app.query_one(Echo)
+                    score = app.query_one("#echo-score", Static)
+                    self.assertEqual(saying.content, "There is always time.")
+                    self.assertEqual(score.content, "94")
+                    # The saying under the list, the score in the header just left of Settings
+                    self.assertGreater(saying.region.y, app.query_one(YafsTable).region.bottom - 1)
+                    settings = app.query_one("#btn-settings", Button)
+                    self.assertEqual(score.region.y, settings.region.y)
+                    self.assertEqual(score.region.right + 2, settings.region.x)
+
+        asyncio.run(exercise())
+
+    def test_a_new_saying_is_erased_from_the_right_and_typed_from_the_left(self) -> None:
+        async def exercise() -> None:
+            self.store.save("good")
+            app = self._app()
+            with (
+                patched_me(),
+                patched_list(),
+                patch("yafyaf_tui.widgets.echo.ERASE_SECONDS", 0.001),
+                patch("yafyaf_tui.widgets.echo.TYPE_SECONDS", 0.001),
+            ):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    echo = app.query_one(Echo)
+                    shown = []
+                    with patch.object(echo, "update", side_effect=lambda text: shown.append(text)):
+                        app.client.saying = "So it goes."
+                        echo.sync()
+                        await pilot.pause(0.3)
+                        self.assertEqual(shown, ["S", "So", "So ", "So i", "So it", "So it ", "So it g", "So it go", "So it goe", "So it goes", "So it goes."])
+
+                        # The old saying goes back to the common start, then the new one is typed out
+                        shown.clear()
+                        app.client.saying = "So be it."
+                        echo.sync()
+                        await pilot.pause(0.3)
+                        self.assertEqual(shown[:9], ["So it goes", "So it goe", "So it go", "So it g", "So it ", "So it", "So i", "So ", "So b"])
+                        self.assertEqual(shown[-1], "So be it.")
+
+                        # The same saying again is left alone
+                        shown.clear()
+                        echo.sync()
+                        await pilot.pause(0.1)
+                        self.assertEqual(shown, [])
+
+        asyncio.run(exercise())
+
+    def test_echo_polls_for_a_new_saying_a_while_after_the_last_response(self) -> None:
+        async def exercise() -> None:
+            self.store.save("good")
+            app = self._app()
+            app.animation_level = "none"
+
+            def me_with_headers():
+                app.client.saying = "Keep it simple." if me.call_count == 1 else "You know better."
+                app.client.score = 95
+                app.client.on_response()
+                return ME
+
+            with (
+                patch("yafyaf_tui.api.client.YafyafClient.me", side_effect=me_with_headers) as me,
+                patched_list(),
+                patch("yafyaf_tui.widgets.echo.random.uniform", return_value=0.2) as uniform,
+            ):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    self.assertEqual(me.call_count, 1)
+                    uniform.assert_called_with(10.0, 30.0)
+                    self.assertEqual(app.query_one(Echo).content, "Keep it simple.")
+
+                    # Each poll's response arms the next one
+                    await pilot.pause(0.5)
+                    await settle(app, pilot)
+                    self.assertGreaterEqual(me.call_count, 3)
+                    self.assertEqual(app.query_one(Echo).content, "You know better.")
+                    self.assertEqual(app.query_one("#echo-score", Static).content, "95")
+
+                    # Signing out stops the polling
+                    app.client.token = ""
+                    app.query_one(Echo).sync()
+                    polled = me.call_count
+                    await pilot.pause(0.5)
+                    await settle(app, pilot)
+                    self.assertEqual(me.call_count, polled)
 
         asyncio.run(exercise())
 

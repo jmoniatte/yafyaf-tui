@@ -23,7 +23,7 @@ from .editor import Draft, DraftError, EditorError, Entry
 from .screens import ConfirmDialog, LoginScreen, SettingsScreen, ThemePicker
 from .shortcuts import GENERAL
 from .theme import effective_theme, load_palette
-from .widgets import AppHeader, HeaderNotification, NewYafRequested, YafOpened, YafsView
+from .widgets import AppHeader, Echo, HeaderNotification, NewYafRequested, YafOpened, YafsView
 
 STYLES_DIR = Path(__file__).parent / "styles"
 
@@ -60,6 +60,7 @@ class YafyafApp(App):
         yield AppHeader(self.url)
         yield YafsView(self.client, **self._rich_colors())
         yield Static("", id="status-line")
+        yield Echo(self.client)
 
     def _rich_colors(self) -> dict[str, str]:
         """The palette entries the yaf list renders through Rich, where TCSS variables do not reach."""
@@ -194,6 +195,9 @@ class YafyafApp(App):
         self.token_store.clear()
         self.client.token = ""
         self.user = None
+        # The revoke response still carried this user's score
+        self.client.score = None
+        self.query_one(Echo).sync()
         self.query_one(YafsView).reset()
         self._ask_login()
 
