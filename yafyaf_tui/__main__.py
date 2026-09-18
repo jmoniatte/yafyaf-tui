@@ -18,6 +18,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         help=f"YafYaf server to talk to (default: ${URL_ENV_VAR} or {DEFAULT_URL})",
     )
     parser.add_argument(
+        "--as",
+        dest="account",
+        metavar="EMAIL",
+        help="use this account's stored token instead of the last one used",
+    )
+    parser.add_argument(
         "command",
         nargs="?",
         choices=["new"],
@@ -27,12 +33,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     url = resolve_url(args.url)
 
     if args.command == "new":
-        raise SystemExit(new_yaf(url, TokenStore.for_url(url)))
+        raise SystemExit(new_yaf(url, TokenStore.for_url(url), account=args.account or ""))
 
     # Must run before Textual takes the tty; a silent terminal just yields None.
     terminal = query_terminal()
     register_terminal_scheme(terminal.scheme, terminal.light_background)
-    app = YafyafApp(url=url)
+    app = YafyafApp(url=url, account=args.account or "")
     app.run()
 
 

@@ -75,7 +75,14 @@ def resolve_url(flag: str | None = None, environ: Mapping[str, str] = os.environ
 
 
 class TokenStore:
-    """One API token per server, each in its own user-only file so config.yaml holds no secrets."""
+    """The API tokens for one server: a user-only file per account, plus which account is current.
+
+    `path` is a directory named after the server, holding one file per email and a `current`
+    file naming the account in use. Older versions kept a single file at `path` with one
+    token and no email; it is read as the current token until `save` files it under its email.
+    """
+
+    _CURRENT = "current"
 
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -88,18 +95,59 @@ class TokenStore:
             name = f"{name}_{parts.port}"
         return cls(directory / name)
 
-    def load(self) -> str:
+    def accounts(self) -> list[str]:
+        """The emails with a stored token, in file order."""
+        if not self.path.is_dir():
+            return []
+        return sorted(entry.name for entry in self.path.iterdir() if entry.is_file() and entry.name != self._CURRENT)
+
+    def current(self) -> str:
+        """The account in use, or "" when none is stored (or only a legacy token without an email)."""
+        account = self._read(self.path / self._CURRENT)
+        return account if account in self.accounts() else ""
+
+    def load(self, account: str = "") -> str:
+        """The token for an account, by default the current one."""
+        if self.path.is_file():
+            return self._read(self.path)
+        account = account or self.current()
+        return self._read(self.path / account) if account else ""
+
+    def save(self, token: str, account: str) -> None:
+        """Store an account's token and make it current."""
+        if self.path.is_file():
+            self.path.unlink()
+        self.path.mkdir(parents=True, exist_ok=True)
+        self._write(self.path / account, token)
+        self.select(account)
+
+    def select(self, account: str) -> None:
+        self._write(self.path / self._CURRENT, account)
+
+    def clear(self, account: str = "") -> None:
+        """Forget an account's token, by default the current one; the next stored account becomes current."""
+        if self.path.is_file():
+            self.path.unlink()
+            return
+        account = account or self.current()
+        if account:
+            (self.path / account).unlink(missing_ok=True)
+        remaining = self.accounts()
+        if not remaining:
+            (self.path / self._CURRENT).unlink(missing_ok=True)
+        elif not self.current():
+            self.select(remaining[0])
+
+    @staticmethod
+    def _read(path: Path) -> str:
         try:
-            return self.path.read_text(encoding="utf-8").strip()
-        except FileNotFoundError:
+            return path.read_text(encoding="utf-8").strip()
+        except (FileNotFoundError, NotADirectoryError, IsADirectoryError):
             return ""
 
-    def save(self, token: str) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    @staticmethod
+    def _write(path: Path, text: str) -> None:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(token + "\n")
-        os.chmod(self.path, 0o600)
-
-    def clear(self) -> None:
-        self.path.unlink(missing_ok=True)
+            handle.write(text + "\n")
+        os.chmod(path, 0o600)

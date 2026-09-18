@@ -1,3 +1,4 @@
+import shutil
 import stat
 import tempfile
 import unittest
@@ -81,24 +82,51 @@ class ResolveUrlTest(unittest.TestCase):
 
 
 class TokenStoreTest(unittest.TestCase):
-    def test_file_is_named_after_the_server(self) -> None:
+    def test_directory_is_named_after_the_server(self) -> None:
         directory = Path("/tokens")
         self.assertEqual(TokenStore.for_url(DEFAULT_URL, directory).path, directory / "yafyaf.com")
         self.assertEqual(TokenStore.for_url("http://localhost:3000", directory).path, directory / "localhost_3000")
         self.assertEqual(TokenStore.for_url("https://yafyaf.com:443", directory).path, directory / "yafyaf.com_443")
 
-    def test_round_trips_the_token_in_a_user_only_file(self) -> None:
+    def test_keeps_one_user_only_file_per_account_and_which_one_is_current(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             store = TokenStore.for_url("http://localhost:3000", Path(tmp) / "tokens")
-            self.assertEqual(store.load(), "")
+            self.assertEqual((store.load(), store.current(), store.accounts()), ("", "", []))
 
-            store.save("abc123")
+            store.save("abc123", "me@example.com")
+            self.assertEqual((store.load(), store.current()), ("abc123", "me@example.com"))
+            self.assertEqual(stat.S_IMODE((store.path / "me@example.com").stat().st_mode), 0o600)
+
+            # A second login becomes current; the first is still there to switch back to
+            store.save("def456", "sayings@example.com")
+            self.assertEqual((store.load(), store.current()), ("def456", "sayings@example.com"))
+            self.assertEqual(store.accounts(), ["me@example.com", "sayings@example.com"])
+            self.assertEqual(store.load("me@example.com"), "abc123")
+            store.select("me@example.com")
             self.assertEqual(store.load(), "abc123")
-            self.assertEqual(stat.S_IMODE(store.path.stat().st_mode), 0o600)
 
-            store.save("replaced")
+            store.save("replaced", "me@example.com")
             self.assertEqual(store.load(), "replaced")
 
+            # Clearing the current account moves on to the next one, then to nothing
             store.clear()
+            self.assertEqual((store.load(), store.current()), ("def456", "sayings@example.com"))
+            store.clear("sayings@example.com")
             store.clear()
-            self.assertEqual(store.load(), "")
+            self.assertEqual((store.load(), store.current(), store.accounts()), ("", "", []))
+
+    def test_a_legacy_single_file_token_is_read_until_it_is_saved_under_its_email(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = TokenStore.for_url("http://localhost:3000", Path(tmp) / "tokens")
+            store.path.parent.mkdir()
+            store.path.write_text("legacy\n")
+            self.assertEqual((store.load(), store.current(), store.accounts()), ("legacy", "", []))
+
+            store.save("legacy", "me@example.com")
+            self.assertTrue(store.path.is_dir())
+            self.assertEqual((store.load(), store.current()), ("legacy", "me@example.com"))
+
+            shutil.rmtree(store.path)
+            store.path.write_text("legacy\n")
+            store.clear()
+            self.assertFalse(store.path.exists())

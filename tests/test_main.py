@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from datetime import date
 
-from textual.widgets import Button, Input, Static
+from textual.widgets import Button, Input, Select, Static
 
 from yafyaf_tui import __version__, shortcuts
 from yafyaf_tui.__main__ import main
@@ -29,12 +29,15 @@ from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.commands import new_yaf
 from yafyaf_tui.config import DEFAULT_URL, Config, TokenStore
 from yafyaf_tui.screens import ConfirmDialog, LoginScreen, SettingsScreen
+from yafyaf_tui.screens.settings_screen import ADD_ACCOUNT
 from yafyaf_tui.terminal_theme import TerminalReport
 from yafyaf_tui.theme import load_palette
 from yafyaf_tui.widgets import Echo, HeaderNotification, YafsTable, YafsView
 from yafyaf_tui.widgets.yafs_view import DATE_WIDTH, summary_text
 
 ME = User(id="abc", email="me@example.com")
+SAYINGS = User(id="say", email="sayings@example.com")
+OTHER = User(id="xyz", email="other@example.com")
 YAFS = (
     Yaf(id="y1", content="First yaf\nwith a second line", date=date(2026, 9, 13)),
     Yaf(id="y2", content="Second yaf", date=date(2026, 9, 12)),
@@ -116,9 +119,10 @@ class MainTest(unittest.TestCase):
                 main([])
             with patch.dict("os.environ", {"YAFYAF_URL": "http://localhost:3000"}):
                 main([])
-                main(["--url", "http://localhost:3100/"])
+                main(["--url", "http://localhost:3100/", "--as", "me@example.com"])
         urls = [call.kwargs["url"] for call in app_class.call_args_list]
         self.assertEqual(urls, [DEFAULT_URL, "http://localhost:3000", "http://localhost:3100"])
+        self.assertEqual([call.kwargs["account"] for call in app_class.call_args_list], ["", "", "me@example.com"])
         self.assertEqual(app_class.return_value.run.call_count, 3)
         self.assertEqual(query.call_count, 3)
 
@@ -129,11 +133,12 @@ class MainTest(unittest.TestCase):
             patch("yafyaf_tui.__main__.query_terminal") as query,
             self.assertRaises(SystemExit) as raised,
         ):
-            main(["new", "--url", "http://localhost:3100"])
+            main(["new", "--url", "http://localhost:3100", "--as", "sayings@example.com"])
         query.assert_not_called()
         self.assertEqual(raised.exception.code, 0)
         self.assertEqual(command.call_args.args[0], "http://localhost:3100")
         self.assertEqual(command.call_args.args[1].path.name, "localhost_3100")
+        self.assertEqual(command.call_args.kwargs, {"account": "sayings@example.com"})
         app_class.assert_not_called()
 
 
@@ -141,7 +146,7 @@ class NewYafTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.store = TokenStore(Path(self.tmp.name) / "token")
-        self.store.save("good")
+        self.store.save("good", ME.email)
         self.record = Path(self.tmp.name) / "draft-path"
 
     def tearDown(self) -> None:
@@ -224,7 +229,7 @@ class NewYafTest(unittest.TestCase):
         self.assertIn("Run yaf to log in first", err)
         self.assertIsNone(draft)
 
-        self.store.save("good")
+        self.store.save("good", ME.email)
         err = io.StringIO()
         with patch.dict("os.environ", {"VISUAL": python_editor("raise SystemExit(3)")}), contextlib.redirect_stderr(err):
             self.assertEqual(new_yaf("http://localhost:3000", self.store), 1)
@@ -244,7 +249,7 @@ class AppTest(unittest.TestCase):
 
     def test_settings_screen_documents_every_binding(self) -> None:
         async def exercise() -> None:
-            self.store.save("good")
+            self.store.save("good", ME.email)
             app = self._app()
             with patched_me(), patched_list():
                 async with app.run_test(size=(100, 34)) as pilot:
@@ -281,7 +286,7 @@ class AppTest(unittest.TestCase):
 
     def test_header_names_the_server_only_when_it_is_not_production(self) -> None:
         async def exercise() -> None:
-            self.store.save("good")
+            self.store.save("good", ME.email)
             with patched_me(), patched_list():
                 local = self._app("http://localhost:3000")
                 async with local.run_test(size=(100, 34)) as pilot:
@@ -297,7 +302,7 @@ class AppTest(unittest.TestCase):
 
     def test_config_warnings_are_shown_as_notifications(self) -> None:
         async def exercise() -> None:
-            self.store.save("good")
+            self.store.save("good", ME.email)
             config = Config(warnings=["Config file is not valid YAML: oops"])
             app = YafyafApp("http://localhost:3000", config, self.store)
             with patched_me(), patched_list():
@@ -320,7 +325,7 @@ class AppTest(unittest.TestCase):
 
     def test_saved_token_is_checked_and_user_is_shown(self) -> None:
         async def exercise() -> None:
-            self.store.save("good")
+            self.store.save("good", ME.email)
             app = self._app()
             with patched_me() as me, patched_list() as list_yafs:
                 async with app.run_test(size=(100, 34)) as pilot:
@@ -345,7 +350,7 @@ class AppTest(unittest.TestCase):
 
     def test_echo_shows_the_saying_and_score_from_the_last_response(self) -> None:
         async def exercise() -> None:
-            self.store.save("good")
+            self.store.save("good", ME.email)
             app = self._app()
             app.animation_level = "none"  # No typewriter, so the text is there to read at once
 
@@ -373,7 +378,7 @@ class AppTest(unittest.TestCase):
 
     def test_a_new_saying_is_erased_from_the_right_and_typed_from_the_left(self) -> None:
         async def exercise() -> None:
-            self.store.save("good")
+            self.store.save("good", ME.email)
             app = self._app()
             with (
                 patched_me(),
@@ -409,7 +414,7 @@ class AppTest(unittest.TestCase):
 
     def test_echo_polls_for_a_new_saying_a_while_after_the_last_response(self) -> None:
         async def exercise() -> None:
-            self.store.save("good")
+            self.store.save("good", ME.email)
             app = self._app()
             app.animation_level = "none"
 
@@ -483,7 +488,7 @@ class AppTest(unittest.TestCase):
 
     def test_settings_signs_out_after_confirming_and_forgets_the_token(self) -> None:
         async def exercise() -> None:
-            self.store.save("good")
+            self.store.save("good", ME.email)
             app = self._app()
             unreachable = ApiConnectionError("Cannot reach http://localhost:3000")
             logout = patch("yafyaf_tui.api.client.YafyafClient.logout", side_effect=unreachable)
@@ -492,7 +497,7 @@ class AppTest(unittest.TestCase):
                     await settle(app, pilot)
                     await pilot.press("?")
                     await pilot.pause()
-                    self.assertEqual(app.screen.query_one("#settings-email", Static).content, ME.email)
+                    self.assertEqual(app.screen.query_one("#account-selector", Select).value, ME.email)
 
                     await pilot.click("#btn-sign-out")
                     await settle(app, pilot)
@@ -528,7 +533,8 @@ class AppTest(unittest.TestCase):
         """The stored token, not the user, decides: a token whose owner cannot be fetched is the one worth clearing."""
 
         async def exercise() -> None:
-            self.store.save("good")
+            # A token from before accounts had names: nothing but the token itself is known
+            self.store.path.write_text("good\n")
             app = self._app()
             unreachable = ApiConnectionError("Cannot reach http://localhost:3000")
             with patch("yafyaf_tui.api.client.YafyafClient.me", side_effect=unreachable), \
@@ -553,9 +559,143 @@ class AppTest(unittest.TestCase):
 
         asyncio.run(exercise())
 
+    def test_settings_switches_between_stored_accounts_and_adds_one(self) -> None:
+        async def exercise() -> None:
+            self.store.save("sayings-token", SAYINGS.email)
+            self.store.save("good", ME.email)
+            app = self._app()
+            app.animation_level = "none"
+            users = {"good": ME, "sayings-token": SAYINGS, "fresh": OTHER}
+
+            def me_for_token():
+                app.client.score = {"good": 94, "sayings-token": 3, "fresh": 1}[app.client.token]
+                app.client.on_response()
+                return users[app.client.token]
+
+            with (
+                patch("yafyaf_tui.api.client.YafyafClient.me", side_effect=me_for_token),
+                patched_list() as list_yafs,
+                patch("yafyaf_tui.api.client.YafyafClient.login", return_value=Session(user=OTHER, token="fresh")),
+            ):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    self.assertEqual(app.user, ME)
+                    self.assertEqual(app.query_one("#app-account", Static).content, ME.email)
+                    self.assertEqual(app.query_one("#echo-score", Static).content, "94")
+
+                    await pilot.press("?")
+                    await pilot.pause()
+                    selector = app.screen.query_one("#account-selector", Select)
+                    self.assertEqual(selector.value, ME.email)
+                    self.assertEqual(
+                        [label for label, _ in selector._options], [ME.email, SAYINGS.email, "Add account..."]
+                    )
+
+                    # Switching reloads the list as the other account, settings stays open
+                    selector.value = SAYINGS.email
+                    await settle(app, pilot)
+                    self.assertIsInstance(app.screen, SettingsScreen)
+                    self.assertEqual(app.user, SAYINGS)
+                    self.assertEqual(app.client.token, "sayings-token")
+                    self.assertEqual(self.store.current(), SAYINGS.email)
+                    self.assertEqual(app.query_one("#app-account", Static).content, SAYINGS.email)
+                    self.assertEqual(app.query_one("#echo-score", Static).content, "3")
+                    self.assertEqual(list_yafs.call_count, 2)
+
+                    # Adding an account closes settings and asks to log in; cancelling keeps the current one
+                    selector.value = ADD_ACCOUNT
+                    await settle(app, pilot)
+                    self.assertIsInstance(app.screen, LoginScreen)
+                    self.assertEqual(app.screen.query_one("#cancel-btn", Button).label, "Cancel")
+                    await pilot.press("escape")
+                    await settle(app, pilot)
+                    self.assertEqual(len(app.screen_stack), 1)
+                    self.assertEqual((app.user, app.client.token), (SAYINGS, "sayings-token"))
+
+                    await pilot.press("?")
+                    await pilot.pause()
+                    app.screen.query_one("#account-selector", Select).value = ADD_ACCOUNT
+                    await settle(app, pilot)
+                    app.screen.query_one("#email", Input).value = OTHER.email
+                    app.screen.query_one("#password", Input).value = "secret"
+                    app.screen.query_one("#password", Input).focus()
+                    await pilot.press("enter")
+                    await settle(app, pilot)
+                    self.assertEqual(app.user, OTHER)
+                    self.assertEqual(self.store.accounts(), sorted([ME.email, SAYINGS.email, OTHER.email]))
+                    self.assertEqual(self.store.current(), OTHER.email)
+
+                    # Signing out of one account falls back to another instead of asking to log in
+                    with patch("yafyaf_tui.api.client.YafyafClient.logout"):
+                        app.confirm_sign_out()
+                        await pilot.pause()
+                        await pilot.click("#confirm-btn")
+                        await settle(app, pilot)
+                    self.assertNotIsInstance(app.screen, LoginScreen)
+                    self.assertEqual(self.store.accounts(), [ME.email, SAYINGS.email])
+                    self.assertEqual(app.account, self.store.current())
+                    self.assertEqual(app.user.email, app.account)
+
+        asyncio.run(exercise())
+
+    def test_a_legacy_token_is_filed_under_its_email_once_checked(self) -> None:
+        async def exercise() -> None:
+            self.store.path.write_text("good\n")
+            app = self._app()
+            with patched_me(), patched_list():
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    self.assertEqual(app.account, ME.email)
+                    self.assertEqual((self.store.current(), self.store.load()), (ME.email, "good"))
+                    self.assertTrue(self.store.path.is_dir())
+
+        asyncio.run(exercise())
+
+    def test_the_as_flag_picks_the_account_and_prefills_the_login_when_it_has_no_token(self) -> None:
+        async def exercise() -> None:
+            self.store.save("good", ME.email)
+            self.store.save("sayings-token", SAYINGS.email)
+            with patched_me() as me, patched_list():
+                app = YafyafApp("http://localhost:3000", Config(), self.store, account=ME.email)
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    me.assert_called_once()
+                    self.assertEqual(app.client.token, "good")
+
+                app = YafyafApp("http://localhost:3000", Config(), self.store, account=OTHER.email)
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await pilot.pause()
+                    self.assertIsInstance(app.screen, LoginScreen)
+                    self.assertEqual(app.screen.query_one("#email", Input).value, OTHER.email)
+                    self.assertIs(app.screen.focused, app.screen.query_one("#password", Input))
+
+        asyncio.run(exercise())
+
+    def test_rejected_token_falls_back_to_another_account_when_there_is_one(self) -> None:
+        async def exercise() -> None:
+            self.store.save("good", ME.email)
+            self.store.save("stale", SAYINGS.email)
+            app = self._app()
+            error = AuthenticationError(401, "Authentication is required and has failed")
+
+            def me_for_token():
+                if app.client.token == "stale":
+                    raise error
+                return ME
+
+            with patch("yafyaf_tui.api.client.YafyafClient.me", side_effect=me_for_token), patched_list():
+                async with app.run_test(size=(100, 34), notifications=True) as pilot:
+                    await settle(app, pilot)
+                    self.assertNotIsInstance(app.screen, LoginScreen)
+                    self.assertEqual(app.user, ME)
+                    self.assertEqual(self.store.accounts(), [ME.email])
+                    self.assertIn("rejected", header_message(app))
+
+        asyncio.run(exercise())
+
     def test_rejected_token_is_cleared_and_login_is_asked_again(self) -> None:
         async def exercise() -> None:
-            self.store.save("stale")
+            self.store.save("stale", ME.email)
             app = self._app()
             error = AuthenticationError(401, "Authentication is required and has failed")
             with patch("yafyaf_tui.api.client.YafyafClient.me", side_effect=error):
@@ -576,7 +716,7 @@ class YafsViewTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.store = TokenStore(Path(self.tmp.name) / "token")
-        self.store.save("good")
+        self.store.save("good", ME.email)
 
     def tearDown(self) -> None:
         self.tmp.cleanup()

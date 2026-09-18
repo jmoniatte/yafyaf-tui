@@ -98,11 +98,22 @@ or the slug of a scheme in `yafyaf_tui/styles/themes/`. The picker writes it bac
 `config.save_theme`, which replaces the `theme:` line rather than rewriting the file, so a
 hand-written config keeps its comments.
 
-The API token is not in the config file. `TokenStore.for_url` keeps one token per server in
-`~/.config/yafyaf-tui/tokens/<host>[_<port>]` (mode 600); the login screen writes it and a
-401 clears it. Signing out is in the settings screen, next to the email it belongs to; the
-screen closes itself before calling `YafyafApp.confirm_sign_out` so the confirmation and the
-login screen behind it are not stacked on a modal that is on its way out.
+The API tokens are not in the config file. `TokenStore.for_url` keeps them per server in
+`~/.config/yafyaf-tui/tokens/<host>[_<port>]/`, one mode-600 file per account email plus a
+`current` file naming the one in use. Older installs have a single file at that path with
+one token and no email; it is used as-is until the first successful `me` call files it under
+its email. The login screen writes tokens, a 401 clears the one it was for, and clearing the
+current account makes the next stored one current.
+
+Several accounts can be signed in at once, one shown at a time. The Account row in Settings
+is a dropdown of the stored emails plus "Add account...": picking one calls
+`YafyafApp.switch_account` (list reloads, score and header follow), adding one opens the login
+screen with a Cancel button instead of Quit. `yaf --as EMAIL` (and `yaf new --as EMAIL`) starts
+on that account, or opens the login screen with the email filled in when it has no token. The
+header shows the email in use. Signing out is in the same row; the screen closes itself before
+calling `YafyafApp.confirm_sign_out` so the confirmation and the login screen behind it are not
+stacked on a modal that is on its way out, and sign out falls back to another stored account
+when there is one.
 
 ## API client
 

@@ -61,6 +61,12 @@ ModalScreen {
     color: $yellow;
 }
 
+#app-account {
+    width: auto;
+    margin-left: 2;
+    color: $comment;
+}
+
 #btn-settings {
     width: auto;
     min-width: 0;
@@ -266,31 +272,31 @@ SettingsScreen .settings-label {
     color: $comment;
 }
 
-SettingsScreen #theme-selector {
+SettingsScreen Select {
     width: 1fr;
     height: 1;
 }
 
-SettingsScreen #theme-selector SelectCurrent {
+SettingsScreen Select SelectCurrent {
     background: transparent;
     border: none !important;
     padding: 0;
     color: $fg;
 }
 
-SettingsScreen #theme-selector SelectCurrent:hover,
-SettingsScreen #theme-selector:focus SelectCurrent {
+SettingsScreen Select SelectCurrent:hover,
+SettingsScreen Select:focus SelectCurrent {
     color: $blue;
 }
 
-SettingsScreen #theme-selector SelectOverlay {
+SettingsScreen Select SelectOverlay {
     background: $bg;
     border: none;
     max-height: 12;
     scrollbar-size: 0 0;
 }
 
-SettingsScreen #theme-selector SelectOverlay > .option-list--option-highlighted {
+SettingsScreen Select SelectOverlay > .option-list--option-highlighted {
     background: $bg-light;
     color: $fg;
     text-style: none;

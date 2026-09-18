@@ -13,13 +13,17 @@ class LoginScreen(ModalScreen[Session | None]):
     """Ask for email and password and exchange them for an API token."""
 
     BINDINGS = [
-        ("escape", "cancel", "Quit"),
+        ("escape", "cancel", "Cancel"),
     ]
 
-    def __init__(self, client: YafyafClient, message: str = "") -> None:
+    def __init__(
+        self, client: YafyafClient, message: str = "", email: str = "", cancel_label: str = "Quit"
+    ) -> None:
         super().__init__()
         self._client = client
         self._message = message
+        self._email = email
+        self._cancel_label = cancel_label
 
     def compose(self) -> ComposeResult:
         with Vertical(id="login-dialog"):
@@ -27,17 +31,17 @@ class LoginScreen(ModalScreen[Session | None]):
             yield Static(self._client.base_url, id="login-url")
             with Horizontal(classes="form-row"):
                 yield Static("Email", classes="field-label")
-                yield Input(placeholder="you@example.com", id="email")
+                yield Input(self._email, placeholder="you@example.com", id="email")
             with Horizontal(classes="form-row"):
                 yield Static("Password", classes="field-label")
                 yield Input(password=True, id="password")
             yield Static(self._message, id="login-error")
             with Horizontal(id="dialog-buttons"):
-                yield Button("Quit", id="cancel-btn")
+                yield Button(self._cancel_label, id="cancel-btn")
                 yield Button("Log in", id="login-btn")
 
     def on_mount(self) -> None:
-        self.query_one("#email", Input).focus()
+        self.query_one("#password" if self._email else "#email", Input).focus()
 
     @on(Input.Submitted)
     def _submit_from_input(self, event: Input.Submitted) -> None:

@@ -11,6 +11,8 @@ from ..widgets.dashed_rule import DashedRule
 from ..widgets.web_link import WebLink
 from ..widgets.yafs_view import YafsTable, YafsView
 
+ADD_ACCOUNT = "+"
+
 
 class SettingsScreen(ModalScreen):
     """Modal screen for the theme, the signed-in account, and the documented shortcuts."""
@@ -46,14 +48,18 @@ class SettingsScreen(ModalScreen):
                 # The token, not the user: an unreachable server leaves a token whose owner is unknown,
                 # and that is exactly when signing out to clear it matters
                 token = self.app.client.token
-                user = self.app.user
-                if user:
-                    account = user.email
+                accounts = self.app.token_store.accounts()
+                if self.app.account in accounts:
+                    yield Select(
+                        options=[(email, email) for email in accounts] + [("Add account...", ADD_ACCOUNT)],
+                        value=self.app.account,
+                        id="account-selector",
+                        allow_blank=False,
+                    )
                 elif token:
-                    account = "Signed in, server unreachable"
+                    yield Static("Signed in, server unreachable", id="settings-email")
                 else:
-                    account = "Not signed in"
-                yield Static(account, id="settings-email", markup=False)
+                    yield Static("Not signed in", id="settings-email")
                 if token:
                     yield Button("Sign out", id="btn-sign-out")
 
@@ -79,6 +85,16 @@ class SettingsScreen(ModalScreen):
         event.stop()
         if event.value is not Select.BLANK:
             self.app.set_theme(event.value)
+
+    @on(Select.Changed, "#account-selector")
+    def _account_changed(self, event: Select.Changed) -> None:
+        event.stop()
+        if event.value == ADD_ACCOUNT:
+            # Close first, so the login screen is not stacked on this one
+            self.dismiss()
+            self.app.call_later(self.app.add_account)
+        else:
+            self.app.switch_account(event.value)
 
     @on(Button.Pressed, "#btn-sign-out")
     def _sign_out(self, event: Button.Pressed) -> None:

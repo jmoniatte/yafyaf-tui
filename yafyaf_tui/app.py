@@ -44,11 +44,14 @@ class YafyafApp(App):
         url: str = DEFAULT_URL,
         config: Config | None = None,
         token_store: TokenStore | None = None,
+        account: str = "",
     ) -> None:
         self.url = url
         self.config = config if config is not None else load_config()
         self.token_store = token_store if token_store is not None else TokenStore.for_url(url)
-        self.client = YafyafClient(url, self.token_store.load())
+        # The email whose token is in use; "" until a legacy token (stored without one) is checked
+        self.account = account or self.token_store.current()
+        self.client = YafyafClient(url, self.token_store.load(self.account))
         self.user: User | None = None
         # The palette is served from get_css_variables rather than baked into
         # CSS, so apply_theme can swap it without restarting.
@@ -137,10 +140,11 @@ class YafyafApp(App):
     def on_mount(self) -> None:
         for warning in self.config.warnings:
             self.notify(warning, severity="warning", timeout=10)
+        self._show_account()
         if self.client.token:
             self._check_token()
         else:
-            self._ask_login()
+            self._ask_login(email=self.account)
 
     @work(exclusive=True)
     async def _check_token(self) -> None:
@@ -148,36 +152,77 @@ class YafyafApp(App):
         try:
             self.user = await asyncio.to_thread(self.client.me)
         except AuthenticationError:
-            self.token_store.clear()
+            self.token_store.clear(self.account)
             self.client.token = ""
-            self._ask_login("Your saved token was rejected; please log in again.")
+            self._use_next_account("Your saved token was rejected; please log in again.")
             return
         except ApiConnectionError as error:
             self._set_status(str(error))
             return
+        # Files a legacy token under its email; for the others this rewrites the same file
+        self.token_store.save(self.client.token, self.user.email)
+        self.account = self.user.email
         self._signed_in_as(self.user)
 
-    def _ask_login(self, message: str = "") -> None:
-        self.push_screen(LoginScreen(self.client, message), self._signed_in)
+    def _ask_login(self, message: str = "", email: str = "", cancel_label: str = "Quit") -> None:
+        screen = LoginScreen(self.client, message, email=email, cancel_label=cancel_label)
+        self.push_screen(screen, self._signed_in)
 
     def _signed_in(self, session: Session | None) -> None:
         if session is None:
-            self.exit()
+            # Cancelling an added account leaves the current one; with nothing to fall back to, quit
+            if not self.client.token:
+                self.exit()
             return
+        self.token_store.save(session.token, session.user.email)
+        self._start_account(session.user.email, session.token)
         self.user = session.user
-        self.client.token = session.token
-        self.token_store.save(session.token)
         self._signed_in_as(session.user)
 
     def _signed_in_as(self, user: User) -> None:
         self._set_status("")
+        self._show_account()
         self.query_one(YafsView).load()
+
+    def switch_account(self, account: str) -> None:
+        """Use another stored account's token; the settings screen is the way in."""
+        if account == self.account and self.client.token:
+            return
+        self.token_store.select(account)
+        self._start_account(account, self.token_store.load(account))
+        self._check_token()
+
+    def add_account(self) -> None:
+        """Log in to one more account; the current one stays stored."""
+        self._ask_login(cancel_label="Cancel")
+
+    def _start_account(self, account: str, token: str) -> None:
+        """Point the client at an account and drop what was on screen for the last one."""
+        self.account = account
+        self.client.token = token
+        self.user = None
+        self.client.score = None
+        self.query_one(Echo).sync()
+        self.query_one(YafsView).reset()
+        self._show_account()
+
+    def _use_next_account(self, message: str) -> None:
+        """After a token is gone, move to another stored account, or ask to log in."""
+        if self.token_store.accounts():
+            if message:
+                self.notify(message, severity="warning")
+            self.switch_account(self.token_store.current())
+        else:
+            self._ask_login(message)
+
+    def _show_account(self) -> None:
+        self.query_one("#app-account", Static).update(self.account)
 
     def confirm_sign_out(self) -> None:
         """Ask before signing out; the settings screen is the way in."""
         if not self.client.token:
             return
-        who = self.user.email if self.user else self.url
+        who = self.user.email if self.user else self.account or self.url
         dialog = ConfirmDialog(
             f"You are signed in as {who}",
             title="Sign Out",
@@ -192,14 +237,9 @@ class YafyafApp(App):
             await asyncio.to_thread(self.client.logout)
         except (ApiError, ApiConnectionError):
             pass  # Forgetting the token locally is what signs out; revoking it is best effort
-        self.token_store.clear()
-        self.client.token = ""
-        self.user = None
-        # The revoke response still carried this user's score
-        self.client.score = None
-        self.query_one(Echo).sync()
-        self.query_one(YafsView).reset()
-        self._ask_login()
+        self.token_store.clear(self.account)
+        self._start_account("", "")
+        self._use_next_account("")
 
     def _set_status(self, text: str) -> None:
         status = self.query_one("#status-line", Static)
