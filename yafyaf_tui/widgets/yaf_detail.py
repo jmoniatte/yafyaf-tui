@@ -54,6 +54,7 @@ class YafDetail(Vertical):
         Binding("escape", "close", "Back to the list", group=ACTIONS),
         # Takes q from the app while the view is up, so it leaves the view rather than the app
         Binding("q", "close", "Back to the list", group=ACTIONS),
+        Binding("y", "copy", "Copy the selection, or the yaf", group=ACTIONS),
         Binding("e", "edit", "Edit yaf", show=False),
         Binding("shift+enter", "edit", "Edit yaf", show=False),
         Binding("j", "scroll_down", "Scroll down", show=False),
@@ -93,6 +94,14 @@ class YafDetail(Vertical):
     def action_edit(self) -> None:
         if self.yaf is not None:
             self.post_message(EditRequested(self.yaf))
+
+    def action_copy(self) -> None:
+        """Copy the text selected with the mouse, or the whole yaf when nothing is selected."""
+        if self.yaf is None:
+            return
+        selection = self.screen.get_selected_text()
+        self.app.copy_to_clipboard(selection or self.yaf.content)
+        self.notify("Selection copied" if selection else "Yaf copied")
 
     def action_scroll_down(self) -> None:
         self.query_one(VerticalScroll).scroll_down()

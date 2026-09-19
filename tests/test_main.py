@@ -266,7 +266,7 @@ class AppTest(unittest.TestCase):
                         )
                     }
                     self.assertEqual(keys, expected)
-                    self.assertTrue({"?", "q", "n", "e", "⇧+enter", "/", "r", "s", "j", "k", "enter", "escape"} <= keys)
+                    self.assertTrue({"?", "q", "n", "e", "⇧+enter", "/", "r", "s", "y", "j", "k", "enter", "escape"} <= keys)
                     await pilot.press("escape")
                     await pilot.pause()
                     self.assertNotIsInstance(app.screen, SettingsScreen)
@@ -946,6 +946,22 @@ class YafsViewTest(unittest.TestCase):
                         await pilot.click(paragraph, offset=(5, 0))
                         await pilot.pause()
                     open_url.assert_called_once_with("https://d.com")
+
+                    # y copies the whole yaf, or just the text selected with the mouse
+                    with patch.object(app, "copy_to_clipboard") as copy:
+                        await pilot.press("y")
+                        await pilot.pause()
+                        copy.assert_called_once_with(on_server.content)
+                        self.assertEqual(header_message(app), "Yaf copied")
+                        await pilot.mouse_down(paragraph, offset=(0, 0))
+                        await pilot.hover(paragraph, offset=(3, 0))
+                        await pilot.mouse_up(paragraph, offset=(3, 0))
+                        await pilot.pause()
+                        copy.reset_mock()
+                        await pilot.press("y")
+                        await pilot.pause()
+                        copy.assert_called_once_with("See ")
+                        self.assertEqual(header_message(app), "Selection copied")
                     with patch.object(app, "_edit_yaf") as edit:
                         await pilot.press("n")
                         await pilot.pause()
@@ -1000,6 +1016,20 @@ class YafsViewTest(unittest.TestCase):
                         await settle(app, pilot)
                     self.assertTrue(Path(record.read_text()).name.startswith("yaf-y2-"))
                     self.assertFalse(detail.display)
+
+        asyncio.run(exercise())
+
+    def test_y_copies_the_highlighted_yaf_from_the_list(self) -> None:
+        async def exercise() -> None:
+            app = self._app()
+            with patched_me(), patched_list():
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    with patch.object(app, "copy_to_clipboard") as copy:
+                        await pilot.press("j", "y")
+                        await pilot.pause()
+                    copy.assert_called_once_with(YAFS[1].content)
+                    self.assertEqual(header_message(app), "Yaf copied")
 
         asyncio.run(exercise())
 

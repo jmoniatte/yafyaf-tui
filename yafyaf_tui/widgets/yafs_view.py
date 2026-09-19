@@ -164,6 +164,7 @@ class YafsView(Vertical):
         Binding("shift+enter", "edit_yaf", "Edit yaf", key_display="⇧+enter", group=ACTIONS),
         Binding("slash", "search", "Search", key_display="/", group=ACTIONS),
         Binding("r", "refresh", "Refresh", group=ACTIONS),
+        Binding("y", "copy_yaf", "Copy yaf", group=ACTIONS),
     ]
 
     def __init__(
@@ -251,6 +252,12 @@ class YafsView(Vertical):
         row = self.query_one(YafsTable).cursor_row
         if 0 <= row < len(self.yafs):
             self.post_message(EditRequested(self.yafs[row]))
+
+    def action_copy_yaf(self) -> None:
+        row = self.query_one(YafsTable).cursor_row
+        if 0 <= row < len(self.yafs):
+            self.app.copy_to_clipboard(self.yafs[row].content)
+            self.notify("Yaf copied")
 
     def action_search(self) -> None:
         self.query_one("#search", Input).focus()

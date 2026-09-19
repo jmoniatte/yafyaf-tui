@@ -96,7 +96,7 @@ Enter on a row shows the yaf rendered with Textual's Markdown widget, in place o
 (`YafDetail`, toggled like the offline notice). `e` or Shift+Enter opens the editor from the
 list or from the view, and the editor returns where it started: the view shows the saved
 content, or the new yaf when the old one was deleted elsewhere. A blanked yaf that is
-confirmed deleted drops back to the list. Escape and `q` leave the view; `q` only quits from the list. Both paths fetch the server's copy first through
+confirmed deleted drops back to the list. Escape and `q` leave the view; `q` only quits from the list. `y` copies the yaf to the clipboard through OSC 52, or in the view the text selected with the mouse. Both paths fetch the server's copy first through
 `YafyafApp._fetch_current`. Shift+Enter only reaches the app in terminals that speak the
 kitty keyboard protocol; `e` is the key that works everywhere. The markdown styles are
 mapped onto the palette in `base.tcss` under `#yaf-detail-markdown`.
