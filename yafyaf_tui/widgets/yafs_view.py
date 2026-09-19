@@ -53,7 +53,7 @@ class YafsTable(DataTable):
     """The list of yafs; rows are keyed by yaf id. Links in a summary open in the browser, like Flotte's URLs."""
 
     BINDINGS = [
-        Binding("enter", "select_cursor", "Edit yaf", show=False, group=ACTIONS),
+        Binding("enter", "select_cursor", "View yaf", show=False, group=ACTIONS),
         Binding("j", "cursor_down", "Move down", show=False, group=GENERAL),
         Binding("k", "cursor_up", "Move up", show=False, group=GENERAL),
     ]
@@ -142,6 +142,14 @@ class YafOpened(Message):
         self.yaf = yaf
 
 
+class EditRequested(Message):
+    """The user asked to edit one yaf in the editor."""
+
+    def __init__(self, yaf: Yaf) -> None:
+        super().__init__()
+        self.yaf = yaf
+
+
 class NewYafRequested(Message):
     """The user asked to write a new yaf."""
 
@@ -151,6 +159,9 @@ class YafsView(Vertical):
 
     BINDINGS = [
         Binding("n", "new_yaf", "New yaf", group=ACTIONS),
+        Binding("e", "edit_yaf", "Edit yaf", group=ACTIONS),
+        # Only terminals with the kitty keyboard protocol can tell this from enter; e works everywhere
+        Binding("shift+enter", "edit_yaf", "Edit yaf", key_display="⇧+enter", group=ACTIONS),
         Binding("slash", "search", "Search", key_display="/", group=ACTIONS),
         Binding("r", "refresh", "Refresh", group=ACTIONS),
     ]
@@ -235,6 +246,11 @@ class YafsView(Vertical):
         # A clicked button keeps focus; hand it back to the list the editor returns to
         self.query_one(YafsTable).focus()
         self.post_message(NewYafRequested())
+
+    def action_edit_yaf(self) -> None:
+        row = self.query_one(YafsTable).cursor_row
+        if 0 <= row < len(self.yafs):
+            self.post_message(EditRequested(self.yafs[row]))
 
     def action_search(self) -> None:
         self.query_one("#search", Input).focus()

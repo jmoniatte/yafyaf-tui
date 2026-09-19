@@ -27,11 +27,14 @@ from .widgets import (
     AccountLink,
     AppHeader,
     Echo,
+    EditRequested,
     HeaderNotification,
     NewYafRequested,
     OfflineNotice,
     RetryRequested,
     SettingsRequested,
+    ViewClosed,
+    YafDetail,
     YafOpened,
     YafsTable,
     YafsView,
@@ -66,6 +69,8 @@ class YafyafApp(App):
         self.account = account or self.token_store.current()
         self.client = YafyafClient(url, self.token_store.load(self.account))
         self.user: User | None = None
+        # The yaf shown in place of the list, if any; the editor returns there when it started there
+        self._viewing: Yaf | None = None
         # The palette is served from get_css_variables rather than baked into
         # CSS, so apply_theme can swap it without restarting.
         self._palette = load_palette(self.config.theme)
@@ -75,6 +80,7 @@ class YafyafApp(App):
     def compose(self) -> ComposeResult:
         yield AppHeader(self.url)
         yield YafsView(self.client, **self._rich_colors())
+        yield YafDetail()
         yield OfflineNotice(urlsplit(self.url).netloc)
         yield Echo(self.client)
 
@@ -203,14 +209,34 @@ class YafyafApp(App):
 
     def _go_offline(self, detail: str) -> None:
         """Hide the list and everything that needs the server until a retry succeeds."""
+        self._viewing = None
+        self.query_one(YafDetail).hide()
+        self.query_one(Echo).display = True
         self.query_one(YafsView).display = False
         self.query_one(OfflineNotice).show(detail)
 
     def _go_online(self) -> None:
         self.query_one(OfflineNotice).hide()
+        self._show_list()
+
+    def _show_list(self) -> None:
+        self._viewing = None
+        self.query_one(YafDetail).hide()
+        self.query_one(Echo).display = True
         view = self.query_one(YafsView)
         view.display = True
         view.query_one(YafsTable).focus()
+
+    def _show_yaf(self, yaf: Yaf) -> None:
+        self._viewing = yaf
+        self.query_one(YafsView).display = False
+        self.query_one(Echo).display = False
+        self.query_one(YafDetail).show(yaf)
+
+    @on(ViewClosed)
+    def _close_view(self) -> None:
+        if self._viewing is not None:
+            self._show_list()
 
     @on(RetryRequested)
     def _retry(self) -> None:
@@ -285,24 +311,40 @@ class YafyafApp(App):
 
     @on(YafOpened)
     def _open_yaf(self, event: YafOpened) -> None:
+        self._fetch_and_show(event.yaf)
+
+    @on(EditRequested)
+    def _edit_requested(self, event: EditRequested) -> None:
         self._fetch_and_edit(event.yaf)
 
     @work(exclusive=True, group="open")
+    async def _fetch_and_show(self, yaf: Yaf) -> None:
+        current = await self._fetch_current(yaf)
+        if current is not None:
+            self._show_yaf(current)
+
+    @work(exclusive=True, group="open")
     async def _fetch_and_edit(self, yaf: Yaf) -> None:
-        """Edit the server's copy, so a yaf deleted or changed in the web app is not edited stale."""
+        current = await self._fetch_current(yaf)
+        if current is not None:
+            # Suspend from a plain callback rather than inside this worker
+            self.call_later(self._edit_yaf, current)
+
+    async def _fetch_current(self, yaf: Yaf) -> Yaf | None:
+        """The server's copy, so a yaf deleted or changed in the web app is not shown or edited stale."""
         view = self.query_one(YafsView)
         try:
             current = await asyncio.to_thread(self.client.get_yaf, yaf.id)
         except NotFoundError:
             self.notify("That yaf was deleted, refreshing the list", severity="warning")
+            self._close_view()
             view.load()
-            return
+            return None
         except (ApiError, ApiConnectionError) as error:
             self.notify(str(error), severity="error")
-            return
+            return None
         view.replace(current)
-        # Suspend from a plain callback rather than inside this worker
-        self.call_later(self._edit_yaf, current)
+        return current
 
     @on(NewYafRequested)
     def _new_yaf(self) -> None:
@@ -363,6 +405,7 @@ class YafyafApp(App):
         except (ApiError, ApiConnectionError) as error:
             self.notify(f"Not deleted: {error}", severity="error")
             return
+        self._close_view()
         self.query_one(YafsView).load()
         self.notify("Yaf deleted")
 
@@ -379,7 +422,7 @@ class YafyafApp(App):
                     yaf = None
                     message = "That yaf was deleted, saved your edit as a new yaf"
             if yaf is None:
-                await asyncio.to_thread(self.client.create_yaf, entry.content, entry.date)
+                saved = await asyncio.to_thread(self.client.create_yaf, entry.content, entry.date)
         except (ApiError, ApiConnectionError) as error:
             self._not_saved(error, draft)
             return
@@ -389,6 +432,8 @@ class YafyafApp(App):
             view.load()
         else:
             view.replace(saved)
+        if self._viewing is not None:
+            self._show_yaf(saved)
         self.notify(message)
 
     def _not_saved(self, error: Exception, draft: Draft) -> None:

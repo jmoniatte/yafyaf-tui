@@ -22,7 +22,6 @@ ModalScreen {
     background: $bg;
     padding: 0 1;
     border-bottom: solid $gutter;
-    margin: 0 0 1 0;
 }
 
 #app-title-group {
@@ -104,7 +103,6 @@ HeaderNotification.-error {
 
 #yafs-controls {
     height: auto;
-    margin-bottom: 1;
     background: transparent;
 }
 
@@ -185,6 +183,89 @@ HeaderNotification.-error {
 
 #yafs-status {
     width: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   YAF DETAIL - one yaf as markdown, shown in place of the list
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#yaf-detail {
+    display: none;
+    height: 1fr;
+}
+
+#yaf-detail-scroll {
+    height: 1fr;
+    padding: 0 1;
+    scrollbar-size-vertical: 1;
+    scrollbar-background: $bg;
+    scrollbar-background-hover: $bg;
+    scrollbar-background-active: $bg;
+    scrollbar-color: $gutter;
+    scrollbar-color-hover: $comment;
+    scrollbar-color-active: $blue;
+}
+
+/* The full date and the API id take the saying's place under the content */
+#yaf-detail-footer {
+    height: 2;
+    padding: 0 1;
+    border-top: solid $gutter;
+    color: $comment;
+}
+
+#yaf-detail-date {
+    width: 1fr;
+}
+
+#yaf-detail-id {
+    width: auto;
+}
+
+/* Textual's markdown styles use its own theme variables; map them onto the palette */
+#yaf-detail-markdown {
+    padding: 0;
+    color: $fg;
+}
+
+/* Link styles do not inherit, so they go on the blocks that hold the text */
+#yaf-detail-markdown MarkdownBlock {
+    link-color: $blue;
+    link-background: transparent;
+    link-style: none;
+    link-color-hover: $blue;
+    link-background-hover: transparent;
+    link-style-hover: underline;
+}
+
+#yaf-detail-markdown MarkdownHeader {
+    color: $yellow;
+    text-style: bold;
+    margin: 1 0 1 0;
+}
+
+#yaf-detail-markdown MarkdownH1 {
+    content-align: left middle;
+    background: transparent;
+    margin: 0 0 1 0;
+}
+
+#yaf-detail-markdown MarkdownBlock > .code_inline {
+    background: $bg-light;
+    color: $fg;
+}
+
+#yaf-detail-markdown MarkdownFence {
+    background: $bg-dark;
+}
+
+#yaf-detail-markdown MarkdownBlockQuote {
+    background: $bg-dark;
+    border-left: outer $comment;
+}
+
+#yaf-detail-markdown MarkdownHorizontalRule {
+    color: $gutter;
 }
 
 /* Shown in place of the list while the server cannot be used */

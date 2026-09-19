@@ -43,7 +43,8 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
     terminal_theme.py   # OSC queries that read the terminal's own palette before Textual starts
     widgets/            # Textual widgets (yafs_view.py: search box + list, paged from the API;
                         # echo.py: saying + score from the x-yaf-* response headers, polled when idle;
-                        # offline_notice.py: replaces the list, and its keys, while the server is down)
+                        # offline_notice.py: replaces the list, and its keys, while the server is down;
+                        # yaf_detail.py: one yaf as markdown in place of the list, Enter opens it, e edits)
     screens/            # Textual screens (settings, login, theme picker)
     styles/             # base.tcss (layout) + themes/*.yaml (base16 schemes)
 ```
@@ -88,6 +89,17 @@ list, which bakes colors into Rich text, is repainted through
 `YafsView.set_colors`.
 
 Never hardcode a color in `base.tcss`.
+
+## Viewing and editing
+
+Enter on a row shows the yaf rendered with Textual's Markdown widget, in place of the list
+(`YafDetail`, toggled like the offline notice). `e` or Shift+Enter opens the editor from the
+list or from the view, and the editor returns where it started: the view shows the saved
+content, or the new yaf when the old one was deleted elsewhere. A blanked yaf that is
+confirmed deleted drops back to the list. Escape and `q` leave the view; `q` only quits from the list. Both paths fetch the server's copy first through
+`YafyafApp._fetch_current`. Shift+Enter only reaches the app in terminals that speak the
+kitty keyboard protocol; `e` is the key that works everywhere. The markdown styles are
+mapped onto the palette in `base.tcss` under `#yaf-detail-markdown`.
 
 ## Server and config
 

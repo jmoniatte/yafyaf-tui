@@ -9,6 +9,7 @@ from .. import shortcuts as shortcut_help
 from ..theme import effective_theme, selectable_themes
 from ..widgets.dashed_rule import DashedRule
 from ..widgets.web_link import WebLink
+from ..widgets.yaf_detail import YafDetail
 from ..widgets.yafs_view import YafsTable, YafsView
 
 ADD_ACCOUNT = "+"
@@ -23,7 +24,7 @@ class SettingsScreen(ModalScreen):
 
     def _sections(self) -> list[tuple[str, tuple[shortcut_help.Shortcut, ...]]]:
         """Read the shortcuts off the bindings, so the two cannot drift."""
-        sources = (YafsView.BINDINGS, YafsTable.BINDINGS, self.app.BINDINGS)
+        sources = (YafsView.BINDINGS, YafsTable.BINDINGS, YafDetail.BINDINGS, self.app.BINDINGS)
         return [
             (section, shortcut_help.for_section(section, *sources))
             for section in shortcut_help.SECTIONS

@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from datetime import date
 
-from textual.widgets import Button, Input, Select, Static
+from textual.widgets import Button, Input, Markdown, Select, Static
 
 from yafyaf_tui import __version__, shortcuts
 from yafyaf_tui.__main__ import main
@@ -32,7 +32,7 @@ from yafyaf_tui.screens import ConfirmDialog, LoginScreen, SettingsScreen
 from yafyaf_tui.screens.settings_screen import ADD_ACCOUNT
 from yafyaf_tui.terminal_theme import TerminalReport
 from yafyaf_tui.theme import load_palette
-from yafyaf_tui.widgets import AccountLink, Echo, HeaderNotification, OfflineNotice, YafsTable, YafsView
+from yafyaf_tui.widgets import AccountLink, Echo, HeaderNotification, OfflineNotice, YafDetail, YafsTable, YafsView
 from yafyaf_tui.widgets.yafs_view import DATE_WIDTH, summary_text
 
 ME = User(id="abc", email="me@example.com")
@@ -262,11 +262,11 @@ class AppTest(unittest.TestCase):
                         shortcut.key
                         for section in shortcuts.SECTIONS
                         for shortcut in shortcuts.for_section(
-                            section, YafsView.BINDINGS, YafsTable.BINDINGS, app.BINDINGS
+                            section, YafsView.BINDINGS, YafsTable.BINDINGS, YafDetail.BINDINGS, app.BINDINGS
                         )
                     }
                     self.assertEqual(keys, expected)
-                    self.assertTrue({"?", "q", "n", "/", "r", "j", "k", "enter"} <= keys)
+                    self.assertTrue({"?", "q", "n", "e", "⇧+enter", "/", "r", "s", "j", "k", "enter", "escape"} <= keys)
                     await pilot.press("escape")
                     await pilot.pause()
                     self.assertNotIsInstance(app.screen, SettingsScreen)
@@ -864,7 +864,7 @@ class YafsViewTest(unittest.TestCase):
         )
         return python_editor(code), record
 
-    def test_enter_edits_the_yaf_and_saves_the_change(self) -> None:
+    def test_e_edits_the_yaf_and_saves_the_change(self) -> None:
         async def exercise() -> None:
             app = self._app()
             editor, record = self._editor("text.replace('Second', 'Changed').replace('09-12', '09-10') + '\\n'")
@@ -880,7 +880,7 @@ class YafsViewTest(unittest.TestCase):
             ):
                 async with app.run_test(size=(100, 34)) as pilot:
                     await settle(app, pilot)
-                    await pilot.press("j", "enter")
+                    await pilot.press("j", "e")
                     await settle(app, pilot)
 
                     # The editor gets the server's copy, not the one the list loaded earlier
@@ -899,6 +899,110 @@ class YafsViewTest(unittest.TestCase):
 
         asyncio.run(exercise())
 
+    def test_enter_shows_the_yaf_as_markdown_and_the_editor_returns_there(self) -> None:
+        async def exercise() -> None:
+            app = self._app()
+            on_server = Yaf(id="y1", content="# Title\n\nSee [docs](https://d.com)\n\n- one\n- two", date=date(2026, 9, 13))
+            saved = Yaf(id="y1", content="# Changed\n\nBody", date=date(2026, 9, 13))
+            editor, record = self._editor("text.replace('Title', 'Changed')")
+            blanked, _ = self._editor("'---\\ndate: 2026-09-13\\n---\\n'")
+            after_delete = YafPage(yafs=YAFS[1:], records_count=1)
+            with (
+                patched_me(),
+                patched_list(ONE_PAGE, after_delete) as list_yafs,
+                patched_get(on_server) as get_yaf,
+                patch("yafyaf_tui.api.client.YafyafClient.update_yaf", return_value=saved) as update_yaf,
+                patch("yafyaf_tui.api.client.YafyafClient.delete_yaf") as delete_yaf,
+            ):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    view = app.query_one(YafsView)
+                    detail = app.query_one(YafDetail)
+                    markdown = app.query_one(Markdown)
+                    self.assertFalse(detail.display)
+
+                    # Enter shows the server's copy, rendered, with the list's keys gone
+                    await pilot.press("enter")
+                    await settle(app, pilot)
+                    get_yaf.assert_called_once_with("y1")
+                    self.assertTrue(detail.display)
+                    self.assertFalse(view.display)
+                    self.assertEqual(app.query_one("#yaf-detail-date", Static).content, "Sunday, September 13, 2026")
+                    # The date takes the saying's place at the bottom
+                    self.assertFalse(app.query_one(Echo).display)
+                    footer = app.query_one("#yaf-detail-footer")
+                    self.assertGreater(footer.region.y, app.query_one("#yaf-detail-scroll").region.bottom - 1)
+                    yaf_id = app.query_one("#yaf-detail-id", Static)
+                    self.assertEqual(yaf_id.content, "y1")
+                    self.assertEqual(yaf_id.region.right, footer.content_region.right)
+                    self.assertEqual([(level, text) for level, text, _ in markdown.table_of_contents], [(1, "Title")])
+                    self.assertEqual(len(markdown.query("MarkdownBulletList")), 1)
+                    self.assertIs(app.focused, app.query_one("#yaf-detail-scroll"))
+                    # A link is a terminal hyperlink as well as a click for the app, like in the list
+                    paragraph = markdown.query_one("MarkdownParagraph")
+                    link = next(span for span in paragraph._content.spans if not isinstance(span.style, str))
+                    self.assertEqual((paragraph._content.plain[link.start : link.end], link.style.link), ("docs", "https://d.com"))
+                    with patch.object(app, "open_url") as open_url:
+                        await pilot.click(paragraph, offset=(5, 0))
+                        await pilot.pause()
+                    open_url.assert_called_once_with("https://d.com")
+                    with patch.object(app, "_edit_yaf") as edit:
+                        await pilot.press("n")
+                        await pilot.pause()
+                        edit.assert_not_called()
+
+                    for back in ("escape", "q"):
+                        await pilot.press(back)
+                        await pilot.pause()
+                        self.assertFalse(detail.display)
+                        self.assertTrue(view.display)
+                        self.assertTrue(app.query_one(Echo).display)
+                        self.assertTrue(app.query_one(YafsTable).has_focus)
+                        self.assertFalse(app._exit)
+                        await pilot.press("enter")
+                        await settle(app, pilot)
+                        self.assertTrue(detail.display)
+
+                    # Editing from the view comes back to the view, with the saved content
+                    with patched_editor(editor):
+                        await pilot.press("e")
+                        await settle(app, pilot)
+                    update_yaf.assert_called_once()
+                    self.assertFalse(Path(record.read_text()).exists())
+                    self.assertTrue(detail.display)
+                    self.assertEqual([(level, text) for level, text, _ in markdown.table_of_contents], [(1, "Changed")])
+                    self.assertEqual(row_text(app.query_one(YafsTable), 0), ["2026-09-13", "Changed"])
+                    self.assertEqual(header_message(app), "Yaf updated")
+
+                    # Blanking it from the view deletes it, and there is nothing left to view
+                    with patched_editor(blanked):
+                        await pilot.press("e")
+                        await settle(app, pilot)
+                    self.assertIsInstance(app.screen, ConfirmDialog)
+                    await pilot.press("escape")
+                    await settle(app, pilot)
+                    self.assertTrue(detail.display)
+                    with patched_editor(blanked):
+                        await pilot.press("e")
+                        await settle(app, pilot)
+                    await pilot.click("#confirm-btn")
+                    await settle(app, pilot)
+                    delete_yaf.assert_called_once_with("y1")
+                    self.assertFalse(detail.display)
+                    self.assertTrue(view.display)
+                    self.assertEqual(list_yafs.call_count, 2)
+                    self.assertTrue(app.query_one(YafsTable).has_focus)
+
+                    # Shift+Enter in the list goes straight to the editor, in terminals that can send it
+                    editor, record = self._editor("text + '\\n'")
+                    with patched_editor(editor):
+                        await pilot.press("shift+enter")
+                        await settle(app, pilot)
+                    self.assertTrue(Path(record.read_text()).name.startswith("yaf-y2-"))
+                    self.assertFalse(detail.display)
+
+        asyncio.run(exercise())
+
     def test_nothing_is_saved_without_a_change_and_a_failed_save_keeps_the_draft(self) -> None:
         async def exercise() -> None:
             app = self._app()
@@ -911,14 +1015,14 @@ class YafsViewTest(unittest.TestCase):
                     # Saving an untouched file only adds the final newline, which is not an edit
                     editor, record = self._editor("text + '\\n'")
                     with patched_editor(editor):
-                        await pilot.press("enter")
+                        await pilot.press("e")
                         await settle(app, pilot)
                     update_yaf.assert_not_called()
                     self.assertFalse(Path(record.read_text()).exists())
                     self.assertEqual(header_message(app), "")
 
                     with patched_editor(python_editor("raise SystemExit(3)")) as resumed:
-                        await pilot.press("enter")
+                        await pilot.press("e")
                         await settle(app, pilot)
                     update_yaf.assert_not_called()
                     self.assertEqual(resumed, [True])
@@ -926,7 +1030,7 @@ class YafsViewTest(unittest.TestCase):
 
                     editor, record = self._editor("text.replace('2026-09-13', '2026-02-30')")
                     with patched_editor(editor):
-                        await pilot.press("enter")
+                        await pilot.press("e")
                         await settle(app, pilot)
                     update_yaf.assert_not_called()
                     draft = Path(record.read_text())
@@ -937,7 +1041,7 @@ class YafsViewTest(unittest.TestCase):
                     # Without front matter the yaf keeps its date
                     editor, record = self._editor("'Replaced'")
                     with patched_editor(editor):
-                        await pilot.press("enter")
+                        await pilot.press("e")
                         await settle(app, pilot)
                     update_yaf.assert_called_once_with("y1", "Replaced", date(2026, 9, 13))
                     draft = Path(record.read_text())
@@ -1002,7 +1106,7 @@ class YafsViewTest(unittest.TestCase):
 
                     # Deleted before opening: no editor, and the list reloads without it
                     with patched_get(error=deleted):
-                        await pilot.press("enter")
+                        await pilot.press("e")
                         await settle(app, pilot)
                     self.assertFalse(record.exists())
                     self.assertEqual(list_yafs.call_count, 2)
@@ -1011,7 +1115,7 @@ class YafsViewTest(unittest.TestCase):
 
                     # Deleted while the editor was open: the edit becomes a new yaf
                     with patched_get():
-                        await pilot.press("enter")
+                        await pilot.press("e")
                         await settle(app, pilot)
                     update_yaf.assert_called_once_with("y2", "Rescued yaf", date(2026, 9, 12))
                     create_yaf.assert_called_once_with("Rescued yaf", date(2026, 9, 12))
@@ -1039,7 +1143,7 @@ class YafsViewTest(unittest.TestCase):
                     await settle(app, pilot)
 
                     # Enter lands on Cancel, so a reflexive Enter does not delete
-                    await pilot.press("enter")
+                    await pilot.press("e")
                     await settle(app, pilot)
                     self.assertIsInstance(app.screen, ConfirmDialog)
                     self.assertEqual(app.screen.query_one("#dialog-message", Static).content, "Delete the yaf from 2026-09-13?")
@@ -1050,13 +1154,13 @@ class YafsViewTest(unittest.TestCase):
                     self.assertNotIsInstance(app.screen, ConfirmDialog)
                     delete_yaf.assert_not_called()
 
-                    await pilot.press("enter")
+                    await pilot.press("e")
                     await settle(app, pilot)
                     await pilot.press("escape")
                     await settle(app, pilot)
                     delete_yaf.assert_not_called()
 
-                    await pilot.press("enter")
+                    await pilot.press("e")
                     await settle(app, pilot)
                     await pilot.click("#confirm-btn")
                     await settle(app, pilot)
@@ -1072,7 +1176,7 @@ class YafsViewTest(unittest.TestCase):
                         (ApiConnectionError("Cannot reach it"), "Not deleted: Cannot reach it"),
                     ):
                         delete_yaf.side_effect = failure
-                        await pilot.press("enter")
+                        await pilot.press("e")
                         await settle(app, pilot)
                         await pilot.click("#confirm-btn")
                         await settle(app, pilot)
@@ -1086,7 +1190,7 @@ class YafsViewTest(unittest.TestCase):
             app = self._app()
             linked = Yaf(id="y3", content="[docs](https://d.com)", date=date(2026, 9, 1))
             page = YafPage(yafs=(*YAFS, linked), records_count=3)
-            with patched_me(), patched_list(page), patched_get(linked) as get_yaf, patched_editor(python_editor("pass")):
+            with patched_me(), patched_list(page), patched_get(linked) as get_yaf:
                 async with app.run_test(size=(100, 34)) as pilot:
                     await settle(app, pilot)
                     table = app.query_one(YafsTable)
@@ -1109,6 +1213,7 @@ class YafsViewTest(unittest.TestCase):
                     await pilot.click(table, offset=(20, 1))
                     await settle(app, pilot)
                     get_yaf.assert_called_once_with("y2")
+                    self.assertTrue(app.query_one(YafDetail).display)
 
         asyncio.run(exercise())
 
