@@ -32,7 +32,7 @@ from yafyaf_tui.screens import ConfirmDialog, LoginScreen, SettingsScreen
 from yafyaf_tui.screens.settings_screen import ADD_ACCOUNT
 from yafyaf_tui.terminal_theme import TerminalReport
 from yafyaf_tui.theme import load_palette
-from yafyaf_tui.widgets import Echo, HeaderNotification, YafsTable, YafsView
+from yafyaf_tui.widgets import AccountLink, Echo, HeaderNotification, OfflineNotice, YafsTable, YafsView
 from yafyaf_tui.widgets.yafs_view import DATE_WIDTH, summary_text
 
 ME = User(id="abc", email="me@example.com")
@@ -271,11 +271,11 @@ class AppTest(unittest.TestCase):
                     await pilot.pause()
                     self.assertNotIsInstance(app.screen, SettingsScreen)
 
-                    # The header button is the other way in, and it must not take focus off the list
-                    button = app.query_one("#btn-settings", Button)
-                    self.assertIs(button.parent, app.query_one("#app-header"))
-                    self.assertEqual(button.region.right, app.query_one("#app-header").content_region.right)
-                    await pilot.click("#btn-settings")
+                    # Clicking the account in the header is the other way in, and it must not take focus off the list
+                    account = app.query_one("#app-account", AccountLink)
+                    self.assertEqual(account.content, ME.email)
+                    self.assertIs(account.parent, app.query_one("#app-header"))
+                    await pilot.click("#app-account")
                     await pilot.pause()
                     self.assertIsInstance(app.screen, SettingsScreen)
                     await pilot.press("escape")
@@ -368,11 +368,12 @@ class AppTest(unittest.TestCase):
                     score = app.query_one("#echo-score", Static)
                     self.assertEqual(saying.content, "There is always time.")
                     self.assertEqual(score.content, "94")
-                    # The saying under the list, the score in the header just left of Settings
+                    # The saying under the list, the score at the header's right edge after the account
                     self.assertGreater(saying.region.y, app.query_one(YafsTable).region.bottom - 1)
-                    settings = app.query_one("#btn-settings", Button)
-                    self.assertEqual(score.region.y, settings.region.y)
-                    self.assertEqual(score.region.right + 2, settings.region.x)
+                    account = app.query_one("#app-account", AccountLink)
+                    self.assertEqual(score.region.y, account.region.y)
+                    self.assertEqual(account.region.right + 2, score.region.x)
+                    self.assertEqual(score.region.right, app.query_one("#app-header").content_region.right)
 
         asyncio.run(exercise())
 
@@ -529,6 +530,46 @@ class AppTest(unittest.TestCase):
 
         asyncio.run(exercise())
 
+    def test_an_unavailable_server_hides_the_list_until_a_retry_succeeds(self) -> None:
+        async def exercise() -> None:
+            self.store.save("good", ME.email)
+            app = self._app()
+            answers = [NotFoundError(404, "Not Found"), ApiConnectionError("Cannot reach it: refused"), ME]
+            with patch("yafyaf_tui.api.client.YafyafClient.me", side_effect=answers), patched_list():
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    self.assertIsNone(app.user)
+                    notice = app.query_one(OfflineNotice)
+                    self.assertTrue(notice.display)
+                    self.assertFalse(app.query_one(YafsView).display)
+                    self.assertEqual(app.query_one("#offline-title", Static).content, "localhost:3000 is not available")
+                    self.assertEqual(app.query_one("#offline-detail", Static).content, "The server answered 404: Not Found")
+                    # The list's keys are gone with it; only the app's own keys remain
+                    with patch.object(app, "_edit_yaf") as edit:
+                        await pilot.press("n")
+                        await pilot.pause()
+                        edit.assert_not_called()
+                    await pilot.press("?")
+                    await pilot.pause()
+                    self.assertIsInstance(app.screen, SettingsScreen)
+                    await pilot.press("escape")
+                    await pilot.pause()
+
+                    await pilot.press("r")
+                    await settle(app, pilot)
+                    self.assertTrue(notice.display)
+                    self.assertEqual(app.query_one("#offline-detail", Static).content, "Cannot reach it: refused")
+
+                    await pilot.click("#btn-retry")
+                    await settle(app, pilot)
+                    self.assertEqual(app.user, ME)
+                    self.assertFalse(notice.display)
+                    self.assertTrue(app.query_one(YafsView).display)
+                    self.assertEqual(app.query_one(YafsTable).row_count, 2)
+                    self.assertIs(app.focused, app.query_one(YafsTable))
+
+        asyncio.run(exercise())
+
     def test_an_unreachable_server_still_offers_sign_out_to_clear_the_token(self) -> None:
         """The stored token, not the user, decides: a token whose owner cannot be fetched is the one worth clearing."""
 
@@ -635,6 +676,36 @@ class AppTest(unittest.TestCase):
                     self.assertEqual(self.store.accounts(), [ME.email, SAYINGS.email])
                     self.assertEqual(app.account, self.store.current())
                     self.assertEqual(app.user.email, app.account)
+
+        asyncio.run(exercise())
+
+    def test_s_cycles_through_the_stored_accounts(self) -> None:
+        async def exercise() -> None:
+            self.store.save("good", ME.email)
+            app = self._app()
+            app.animation_level = "none"
+            users = {"good": ME, "sayings-token": SAYINGS}
+            with (
+                patch("yafyaf_tui.api.client.YafyafClient.me", side_effect=lambda: users[app.client.token]),
+                patched_list() as list_yafs,
+            ):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    # With one account there is nothing to cycle to
+                    await pilot.press("s")
+                    await settle(app, pilot)
+                    self.assertEqual((app.user, header_message(app)), (ME, ""))
+
+                    self.store.save("sayings-token", SAYINGS.email)
+                    self.store.select(ME.email)
+                    for expected in (SAYINGS, ME, SAYINGS):
+                        await pilot.press("s")
+                        await settle(app, pilot)
+                        self.assertEqual(app.user, expected)
+                        self.assertEqual(self.store.current(), expected.email)
+                        self.assertEqual(app.query_one("#app-account", Static).content, expected.email)
+                        self.assertEqual(header_message(app), f"Switched to {expected.email}")
+                    self.assertEqual(list_yafs.call_count, 4)
 
         asyncio.run(exercise())
 

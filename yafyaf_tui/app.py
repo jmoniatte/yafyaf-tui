@@ -1,12 +1,12 @@
 import asyncio
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from textual import on, work
 from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding
 from textual.notifications import Notification, SeverityLevel
-from textual.widgets import Button, Static
 
 from .api import (
     ApiConnectionError,
@@ -23,7 +23,19 @@ from .editor import Draft, DraftError, EditorError, Entry
 from .screens import ConfirmDialog, LoginScreen, SettingsScreen, ThemePicker
 from .shortcuts import GENERAL
 from .theme import effective_theme, load_palette
-from .widgets import AppHeader, Echo, HeaderNotification, NewYafRequested, YafOpened, YafsView
+from .widgets import (
+    AccountLink,
+    AppHeader,
+    Echo,
+    HeaderNotification,
+    NewYafRequested,
+    OfflineNotice,
+    RetryRequested,
+    SettingsRequested,
+    YafOpened,
+    YafsTable,
+    YafsView,
+)
 
 STYLES_DIR = Path(__file__).parent / "styles"
 
@@ -36,6 +48,7 @@ class YafyafApp(App):
     BINDINGS = [
         Binding("question_mark", "settings", "Settings", key_display="?", group=GENERAL),
         Binding("t", "show_themes", "Change theme", group=GENERAL),
+        Binding("s", "next_account", "Switch account", group=GENERAL),
         Binding("q", "quit", "Quit", group=GENERAL),
     ]
 
@@ -62,7 +75,7 @@ class YafyafApp(App):
     def compose(self) -> ComposeResult:
         yield AppHeader(self.url)
         yield YafsView(self.client, **self._rich_colors())
-        yield Static("", id="status-line")
+        yield OfflineNotice(urlsplit(self.url).netloc)
         yield Echo(self.client)
 
     def _rich_colors(self) -> dict[str, str]:
@@ -157,7 +170,11 @@ class YafyafApp(App):
             self._use_next_account("Your saved token was rejected; please log in again.")
             return
         except ApiConnectionError as error:
-            self._set_status(str(error))
+            self._go_offline(str(error))
+            return
+        except ApiError as error:
+            # A proxy answering for a server that is down, or a deploy in progress
+            self._go_offline(f"The server answered {error.status}: {error}")
             return
         # Files a legacy token under its email; for the others this rewrites the same file
         self.token_store.save(self.client.token, self.user.email)
@@ -180,9 +197,24 @@ class YafyafApp(App):
         self._signed_in_as(session.user)
 
     def _signed_in_as(self, user: User) -> None:
-        self._set_status("")
+        self._go_online()
         self._show_account()
         self.query_one(YafsView).load()
+
+    def _go_offline(self, detail: str) -> None:
+        """Hide the list and everything that needs the server until a retry succeeds."""
+        self.query_one(YafsView).display = False
+        self.query_one(OfflineNotice).show(detail)
+
+    def _go_online(self) -> None:
+        self.query_one(OfflineNotice).hide()
+        view = self.query_one(YafsView)
+        view.display = True
+        view.query_one(YafsTable).focus()
+
+    @on(RetryRequested)
+    def _retry(self) -> None:
+        self._check_token()
 
     def switch_account(self, account: str) -> None:
         """Use another stored account's token; the settings screen is the way in."""
@@ -191,6 +223,16 @@ class YafyafApp(App):
         self.token_store.select(account)
         self._start_account(account, self.token_store.load(account))
         self._check_token()
+
+    def action_next_account(self) -> None:
+        """Move to the next stored account, wrapping around, so s alone cycles through them all."""
+        accounts = self.token_store.accounts()
+        if len(accounts) < 2:
+            return
+        index = accounts.index(self.account) if self.account in accounts else -1
+        account = accounts[(index + 1) % len(accounts)]
+        self.switch_account(account)
+        self.notify(f"Switched to {account}")
 
     def add_account(self) -> None:
         """Log in to one more account; the current one stays stored."""
@@ -216,7 +258,7 @@ class YafyafApp(App):
             self._ask_login(message)
 
     def _show_account(self) -> None:
-        self.query_one("#app-account", Static).update(self.account)
+        self.query_one(AccountLink).show(self.account)
 
     def confirm_sign_out(self) -> None:
         """Ask before signing out; the settings screen is the way in."""
@@ -240,12 +282,6 @@ class YafyafApp(App):
         self.token_store.clear(self.account)
         self._start_account("", "")
         self._use_next_account("")
-
-    def _set_status(self, text: str) -> None:
-        status = self.query_one("#status-line", Static)
-        status.update(text)
-        # Only connection problems use this line now, so it takes no room otherwise
-        status.display = bool(text)
 
     @on(YafOpened)
     def _open_yaf(self, event: YafOpened) -> None:
@@ -363,6 +399,6 @@ class YafyafApp(App):
             timeout=30,
         )
 
-    @on(Button.Pressed, "#btn-settings")
+    @on(SettingsRequested)
     def action_settings(self) -> None:
         self.push_screen(SettingsScreen())

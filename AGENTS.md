@@ -42,7 +42,8 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
     theme.py            # base16 scheme loading, palette derivation
     terminal_theme.py   # OSC queries that read the terminal's own palette before Textual starts
     widgets/            # Textual widgets (yafs_view.py: search box + list, paged from the API;
-                        # echo.py: saying + score from the x-yaf-* response headers, polled when idle)
+                        # echo.py: saying + score from the x-yaf-* response headers, polled when idle;
+                        # offline_notice.py: replaces the list, and its keys, while the server is down)
     screens/            # Textual screens (settings, login, theme picker)
     styles/             # base.tcss (layout) + themes/*.yaml (base16 schemes)
 ```
@@ -79,7 +80,7 @@ place the editorial rule lives: a scheme whose own `$fg` on `$bg` falls below
 `MIN_TEXT_CONTRAST` (WCAG AA) is skipped, since `base.tcss` cannot rescue it.
 Do not hand-add a scheme the script would reject.
 
-Settings (`?` or the header button) has a theme dropdown; the picker (`t`) previews as the cursor
+Settings (`?` or clicking the email in the header) has a theme dropdown; the picker (`t`) previews as the cursor
 moves. Both route through `YafyafApp.set_theme`, which persists the choice;
 `apply_theme` alone does not. The palette is served from `YafyafApp.get_css_variables`
 rather than baked into `CSS`. `refresh_css` only re-applies TCSS, so the yaf
@@ -108,7 +109,7 @@ current account makes the next stored one current.
 Several accounts can be signed in at once, one shown at a time. The Account row in Settings
 is a dropdown of the stored emails plus "Add account...": picking one calls
 `YafyafApp.switch_account` (list reloads, score and header follow), adding one opens the login
-screen with a Cancel button instead of Quit. `yaf --as EMAIL` (and `yaf new --as EMAIL`) starts
+screen with a Cancel button instead of Quit. `s` cycles through the stored accounts. `yaf --as EMAIL` (and `yaf new --as EMAIL`) starts
 on that account, or opens the login screen with the email filled in when it has no token. The
 header shows the email in use. Signing out is in the same row; the screen closes itself before
 calling `YafyafApp.confirm_sign_out` so the confirmation and the login screen behind it are not
