@@ -40,5 +40,5 @@ class AppHeader(Horizontal):
         # Only a non-production server is worth calling out
         if self._url != DEFAULT_URL:
             yield Static(self._url, id="app-url")
-        yield AccountLink("Settings", id="app-account", markup=False)  # The app fills in the email in use
         yield Static("", id="echo-score")  # Filled by Echo
+        yield AccountLink("Settings", id="app-account", markup=False)  # The app fills in the email in use

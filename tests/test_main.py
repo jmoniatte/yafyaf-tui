@@ -368,12 +368,12 @@ class AppTest(unittest.TestCase):
                     score = app.query_one("#echo-score", Static)
                     self.assertEqual(saying.content, "There is always time.")
                     self.assertEqual(score.content, "94")
-                    # The saying under the list, the score at the header's right edge after the account
+                    # The saying under the list, the score in the header just left of the account
                     self.assertGreater(saying.region.y, app.query_one(YafsTable).region.bottom - 1)
                     account = app.query_one("#app-account", AccountLink)
                     self.assertEqual(score.region.y, account.region.y)
-                    self.assertEqual(account.region.right + 2, score.region.x)
-                    self.assertEqual(score.region.right, app.query_one("#app-header").content_region.right)
+                    self.assertEqual(score.region.right + 2, account.region.x)
+                    self.assertEqual(account.region.right, app.query_one("#app-header").content_region.right)
 
         asyncio.run(exercise())
 

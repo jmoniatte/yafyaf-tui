@@ -236,7 +236,7 @@ HeaderNotification.-error {
     text-overflow: ellipsis;
 }
 
-/* The score sits in the header, right of the account */
+/* The score sits in the header, left of the account */
 #echo-score {
     width: auto;
     margin-left: 2;
