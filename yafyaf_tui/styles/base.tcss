@@ -569,15 +569,15 @@ ModalScreen Button:disabled {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   CONFIRM DIALOG
+   DIALOGS (confirm, not saved)
    ═══════════════════════════════════════════════════════════════════════ */
 
-ConfirmDialog {
+Dialog {
     align: center top;
     background: $bg 80%;
 }
 
-ConfirmDialog > Vertical {
+Dialog > Vertical {
     width: auto;
     min-width: 40;
     max-width: 60;
@@ -586,30 +586,30 @@ ConfirmDialog > Vertical {
     padding: 1 2;
 }
 
-ConfirmDialog #dialog-title {
+Dialog #dialog-title {
     text-style: bold;
     color: $red;
     margin-bottom: 1;
 }
 
-ConfirmDialog #dialog-message {
+Dialog #dialog-message {
     color: $fg;
 }
 
-ConfirmDialog #dialog-detail {
+Dialog #dialog-detail {
     margin-top: 1;
     color: $comment;
     text-wrap: nowrap;
     text-overflow: ellipsis;
 }
 
-ConfirmDialog #dialog-buttons {
+Dialog #dialog-buttons {
     height: 1;
     align: right middle;
     margin-top: 1;
 }
 
-ConfirmDialog Button {
+Dialog Button {
     width: auto;
     min-width: 0;
     border: none;
@@ -617,49 +617,46 @@ ConfirmDialog Button {
     padding: 0 2;
 }
 
-ConfirmDialog #cancel-btn {
+Dialog Button.-plain {
     background: $bg-light;
     color: $fg;
 }
 
-ConfirmDialog #cancel-btn:hover {
+Dialog Button.-plain:hover {
     background: $gutter;
 }
 
-ConfirmDialog #cancel-btn:focus {
+Dialog Button.-plain:focus {
     background: $blue;
     color: $bg-dark;
     text-style: bold;
 }
 
-ConfirmDialog #confirm-btn {
+Dialog Button.-danger {
     background: $red 30%;
     color: $red;
 }
 
-ConfirmDialog #confirm-btn:hover {
+Dialog Button.-danger:hover {
     background: $red 50%;
 }
 
-ConfirmDialog #confirm-btn:focus {
+Dialog Button.-danger:focus {
     background: $red;
     color: white;
     text-style: bold;
 }
 
-ConfirmDialog #edit-btn,
-ConfirmDialog #retry-btn {
+Dialog Button.-action {
     background: $blue 30%;
     color: $blue;
 }
 
-ConfirmDialog #edit-btn:hover,
-ConfirmDialog #retry-btn:hover {
+Dialog Button.-action:hover {
     background: $blue 50%;
 }
 
-ConfirmDialog #edit-btn:focus,
-ConfirmDialog #retry-btn:focus {
+Dialog Button.-action:focus {
     background: $blue;
     color: $bg-dark;
     text-style: bold;

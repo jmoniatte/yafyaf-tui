@@ -1,15 +1,11 @@
-from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
-from textual.widgets import Button, Static
-
-from .confirm_dialog import ConfirmDialog
+from .dialog import Dialog, DialogButton
 
 EDIT_AGAIN = "edit"
 RETRY = "retry"
 DISCARD = "discard"
 
 
-class NotSavedDialog(ConfirmDialog):
+class NotSavedDialog(Dialog):
     """After a failed save: the error and what to do about the edit.
 
     Returns EDIT_AGAIN (the default, on Enter), RETRY (only offered when the server, not the
@@ -17,24 +13,9 @@ class NotSavedDialog(ConfirmDialog):
     the user has to choose what becomes of it.
     """
 
-    INITIAL_FOCUS = "#edit-btn"
-
     def __init__(self, error: str, retry: bool) -> None:
-        super().__init__(error, title="Error saving the Yaf")
-        self._retry = retry
-
-    def compose(self) -> ComposeResult:
-        with Vertical():
-            yield Static(self.dialog_title, id="dialog-title", markup=False)
-            yield Static(self.message, id="dialog-message", markup=False)
-            with Horizontal(id="dialog-buttons"):
-                yield Button("Discard", id="confirm-btn")
-                if self._retry:
-                    yield Button("Retry", id="retry-btn")
-                yield Button("Edit again", id="edit-btn")
-
-    def result_for(self, button_id: str | None) -> str:
-        return {"edit-btn": EDIT_AGAIN, "retry-btn": RETRY}.get(button_id or "", DISCARD)
-
-    def action_cancel(self) -> None:
-        pass  # Escape is inherited with the base bindings; discarding must be a deliberate click
+        buttons = [DialogButton("Discard", DISCARD, "confirm-btn", kind="danger")]
+        if retry:
+            buttons.append(DialogButton("Retry", RETRY, "retry-btn", kind="action"))
+        buttons.append(DialogButton("Edit again", EDIT_AGAIN, "edit-btn", kind="action"))
+        super().__init__("Error saving the Yaf", error, buttons, focus="edit-btn")

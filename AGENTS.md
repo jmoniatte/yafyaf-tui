@@ -49,7 +49,8 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
                         # echo.py: saying + score from the x-yaf-* response headers, polled when idle;
                         # offline_notice.py: replaces the list, and its keys, while the server is down;
                         # yaf_detail.py: one yaf as markdown in place of the list, Enter opens it, e edits)
-    screens/            # Textual screens (settings, login, theme picker)
+    screens/            # Textual screens (settings, login, theme picker; dialog.py is the base of the
+                        # confirm and not-saved dialogs, each a list of DialogButton)
     styles/             # base.tcss (layout) + themes/*.yaml (base16 schemes)
 ```
 
