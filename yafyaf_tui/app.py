@@ -1,26 +1,25 @@
 import asyncio
 from datetime import date
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from textual import on, work
 from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding
 from textual.notifications import Notification, SeverityLevel
+from textual.widgets import Static
 
 from .api import (
     ApiConnectionError,
     ApiError,
     AuthenticationError,
     NotFoundError,
-    Session,
     User,
     Yaf,
     YafyafClient,
 )
-from .config import DEFAULT_URL, Config, TokenStore, load_config, save_theme
+from .config import DEFAULT_URL, Account, Config, TokenStore, load_config, save_theme, server_name
 from .editor import Draft, DraftError, EditorError, Entry
-from .screens import ConfirmDialog, LoginScreen, SettingsScreen, ThemePicker
+from .screens import ConfirmDialog, Login, LoginScreen, SettingsScreen, ThemePicker
 from .shortcuts import GENERAL
 from .theme import effective_theme, load_palette
 from .widgets import (
@@ -60,14 +59,18 @@ class YafyafApp(App):
         url: str = DEFAULT_URL,
         config: Config | None = None,
         token_store: TokenStore | None = None,
-        account: str = "",
+        account: Account | None = None,
+        login_email: str = "",
     ) -> None:
-        self.url = url
         self.config = config if config is not None else load_config()
-        self.token_store = token_store if token_store is not None else TokenStore.for_url(url)
-        # The email whose token is in use; "" until a legacy token (stored without one) is checked
-        self.account = account or self.token_store.current()
-        self.client = YafyafClient(url, self.token_store.load(self.account))
+        self.token_store = token_store if token_store is not None else TokenStore.default()
+        # The account whose token is in use, or None until the first login; it names the server too
+        self.account = account if (account or login_email) else self.token_store.resolve(url)
+        self.url = self.account.url if self.account else url
+        # Offered by the login screen; the server in use is always among them
+        self.servers = self.config.servers_with(self.url)
+        self._login_email = login_email
+        self.client = YafyafClient(self.url, self.token_store.token(self.account))
         self.user: User | None = None
         # The yaf shown in place of the list, if any; the editor returns there when it started there
         self._viewing: Yaf | None = None
@@ -78,10 +81,10 @@ class YafyafApp(App):
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        yield AppHeader(self.url)
+        yield AppHeader()
         yield YafsView(self.client, **self._rich_colors())
         yield YafDetail()
-        yield OfflineNotice(urlsplit(self.url).netloc)
+        yield OfflineNotice()
         yield Echo(self.client)
 
     def _rich_colors(self) -> dict[str, str]:
@@ -163,7 +166,7 @@ class YafyafApp(App):
         if self.client.token:
             self._check_token()
         else:
-            self._ask_login(email=self.account)
+            self._ask_login(email=self._login_email)
 
     @work(exclusive=True)
     async def _check_token(self) -> None:
@@ -182,23 +185,23 @@ class YafyafApp(App):
             # A proxy answering for a server that is down, or a deploy in progress
             self._go_offline(f"The server answered {error.status}: {error}")
             return
-        # Files a legacy token under its email; for the others this rewrites the same file
-        self.token_store.save(self.client.token, self.user.email)
-        self.account = self.user.email
+        self.token_store.select(self.account)
         self._signed_in_as(self.user)
 
     def _ask_login(self, message: str = "", email: str = "", cancel_label: str = "Quit") -> None:
-        screen = LoginScreen(self.client, message, email=email, cancel_label=cancel_label)
+        screen = LoginScreen(self.servers, self.url, message, email=email, cancel_label=cancel_label)
         self.push_screen(screen, self._signed_in)
 
-    def _signed_in(self, session: Session | None) -> None:
-        if session is None:
+    def _signed_in(self, login: Login | None) -> None:
+        if login is None:
             # Cancelling an added account leaves the current one; with nothing to fall back to, quit
             if not self.client.token:
                 self.exit()
             return
-        self.token_store.save(session.token, session.user.email)
-        self._start_account(session.user.email, session.token)
+        session = login.session
+        account = Account(login.url, session.user.email)
+        self.token_store.save(account, session.token)
+        self._start_account(account, session.token)
         self.user = session.user
         self._signed_in_as(session.user)
 
@@ -213,7 +216,7 @@ class YafyafApp(App):
         self.query_one(YafDetail).hide()
         self.query_one(Echo).display = True
         self.query_one(YafsView).display = False
-        self.query_one(OfflineNotice).show(detail)
+        self.query_one(OfflineNotice).show(server_name(self.url), detail)
 
     def _go_online(self) -> None:
         self.query_one(OfflineNotice).hide()
@@ -242,12 +245,12 @@ class YafyafApp(App):
     def _retry(self) -> None:
         self._check_token()
 
-    def switch_account(self, account: str) -> None:
-        """Use another stored account's token; the settings screen is the way in."""
+    def switch_account(self, account: Account) -> None:
+        """Use another stored account, on whichever server it is; the settings screen and s are the ways in."""
         if account == self.account and self.client.token:
             return
         self.token_store.select(account)
-        self._start_account(account, self.token_store.load(account))
+        self._start_account(account, self.token_store.token(account))
         self._check_token()
 
     def action_next_account(self) -> None:
@@ -258,15 +261,19 @@ class YafyafApp(App):
         index = accounts.index(self.account) if self.account in accounts else -1
         account = accounts[(index + 1) % len(accounts)]
         self.switch_account(account)
-        self.notify(f"Switched to {account}")
+        self.notify(f"Switched to {account.label}")
 
     def add_account(self) -> None:
         """Log in to one more account; the current one stays stored."""
         self._ask_login(cancel_label="Cancel")
 
-    def _start_account(self, account: str, token: str) -> None:
-        """Point the client at an account and drop what was on screen for the last one."""
+    def _start_account(self, account: Account | None, token: str) -> None:
+        """Point the client at an account, and its server, and drop what was on screen for the last one."""
         self.account = account
+        if account is not None:
+            self.url = account.url
+            self.servers = self.config.servers_with(self.url)
+        self.client.base_url = self.url
         self.client.token = token
         self.user = None
         self.client.score = None
@@ -276,21 +283,26 @@ class YafyafApp(App):
 
     def _use_next_account(self, message: str) -> None:
         """After a token is gone, move to another stored account, or ask to log in."""
-        if self.token_store.accounts():
+        accounts = self.token_store.accounts()
+        if accounts:
             if message:
                 self.notify(message, severity="warning")
-            self.switch_account(self.token_store.current())
+            self.switch_account(self.token_store.current() or accounts[0])
         else:
             self._ask_login(message)
 
     def _show_account(self) -> None:
-        self.query_one(AccountLink).show(self.account)
+        self.query_one(AccountLink).show(self.account.email if self.account else "")
+        # Only a non-production server is worth calling out
+        server = self.query_one("#app-url", Static)
+        server.update(server_name(self.url) if self.url != DEFAULT_URL else "")
+        server.display = self.url != DEFAULT_URL
 
     def confirm_sign_out(self) -> None:
         """Ask before signing out; the settings screen is the way in."""
         if not self.client.token:
             return
-        who = self.user.email if self.user else self.account or self.url
+        who = self.account.label if self.account else self.url
         dialog = ConfirmDialog(
             f"You are signed in as {who}",
             title="Sign Out",
@@ -306,7 +318,7 @@ class YafyafApp(App):
         except (ApiError, ApiConnectionError):
             pass  # Forgetting the token locally is what signs out; revoking it is best effort
         self.token_store.clear(self.account)
-        self._start_account("", "")
+        self._start_account(None, "")
         self._use_next_account("")
 
     @on(YafOpened)

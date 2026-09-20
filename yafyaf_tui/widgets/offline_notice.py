@@ -20,16 +20,16 @@ class OfflineNotice(Vertical):
     BINDINGS = [Binding("r", "retry", "Retry", show=False)]
     can_focus = True
 
-    def __init__(self, server: str, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(id="offline", **kwargs)
-        self._server = server
 
     def compose(self) -> ComposeResult:
-        yield Static(f"{self._server} is not available", id="offline-title", markup=False)
+        yield Static("", id="offline-title", markup=False)
         yield Static("", id="offline-detail", markup=False)
         yield Button("Retry (r)", id="btn-retry")
 
-    def show(self, detail: str) -> None:
+    def show(self, server: str, detail: str) -> None:
+        self.query_one("#offline-title", Static).update(f"{server} is not available")
         self.query_one("#offline-detail", Static).update(detail)
         self.display = True
         self.focus()

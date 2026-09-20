@@ -10,7 +10,8 @@ from .editor import Draft, DraftError, EditorError
 
 def new_yaf(url: str, token_store: TokenStore, day: date | None = None, account: str = "") -> int:
     """Write a new yaf in $VISUAL or $EDITOR, dated day unless the front matter says otherwise; returns the exit code."""
-    token = token_store.load(account)
+    found = token_store.resolve(url, account)
+    token = token_store.token(found)
     if not token:
         who = f"as {account} " if account else ""
         print(f"Not logged in {who}to {url}. Run yaf to log in first.", file=sys.stderr)
@@ -36,7 +37,7 @@ def new_yaf(url: str, token_store: TokenStore, day: date | None = None, account:
     try:
         client.create_yaf(entry.content, entry.date)
     except AuthenticationError:
-        token_store.clear(account)
+        token_store.clear(found)
         return _not_saved("Your saved token was rejected. Run yaf to log in again.", draft)
     except (ApiError, ApiConnectionError) as error:
         return _not_saved(error, draft)

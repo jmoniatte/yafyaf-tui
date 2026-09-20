@@ -101,32 +101,40 @@ confirmed deleted drops back to the list. Escape and `q` leave the view; `q` onl
 kitty keyboard protocol; `e` is the key that works everywhere. The markdown styles are
 mapped onto the palette in `base.tcss` under `#yaf-detail-markdown`.
 
-## Server and config
+## Servers, config and accounts
 
-`yaf` talks to `https://yafyaf.com` unless started with `--url` or `YAFYAF_URL` (flag wins);
-see `config.resolve_url`. End users configure nothing.
+`yaf` starts on the server given by `--url` or `YAFYAF_URL` (flag wins), else on the server of
+the last account used, else on `https://yafyaf.com`; see `__main__.main` and `config.resolve_url`.
+End users configure nothing.
 
-`~/.config/yafyaf-tui/config.yaml` is optional and only holds `theme`: `terminal` (the default)
-or the slug of a scheme in `yafyaf_tui/styles/themes/`. The picker writes it back with
+`~/.config/yafyaf-tui/config.yaml` is optional and holds two keys. `theme` is `terminal` (the
+default) or the slug of a scheme in `yafyaf_tui/styles/themes/`; the picker writes it back with
 `config.save_theme`, which replaces the `theme:` line rather than rewriting the file, so a
-hand-written config keeps its comments.
+hand-written config keeps its comments. `servers` is a list of URLs the login screen offers, for
+example production and a local Rails; with one server (the default) the login screen shows no
+choice. A server started with `--url` is offered too, even when not listed.
 
-The API tokens are not in the config file. `TokenStore.for_url` keeps them per server in
-`~/.config/yafyaf-tui/tokens/<host>[_<port>]/`, one mode-600 file per account email plus a
-`current` file naming the one in use. Older installs have a single file at that path with
-one token and no email; it is used as-is until the first successful `me` call files it under
-its email. The login screen writes tokens, a 401 clears the one it was for, and clearing the
-current account makes the next stored one current.
-
-Several accounts can be signed in at once, one shown at a time. The Account row in Settings
-is a dropdown of the stored emails plus "Add account...": picking one calls
-`YafyafApp.switch_account` (list reloads, score and header follow), adding one opens the login
-screen with a Cancel button instead of Quit. `s` cycles through the stored accounts. `yaf --as EMAIL` (and `yaf new --as EMAIL`) starts
-on that account, or opens the login screen with the email filled in when it has no token. The
-header shows the email in use. Signing out is in the same row; the screen closes itself before
-calling `YafyafApp.confirm_sign_out` so the confirmation and the login screen behind it are not
-stacked on a modal that is on its way out, and sign out falls back to another stored account
+The API tokens are not in the config file. `TokenStore` keeps them all in one mode-600 file,
+`~/.config/yafyaf-tui/tokens.yaml`: one entry per `Account` (a server URL and an email), plus
+which one is current. On first use `TokenStore.default` imports the per-server directories that
+versions before 0.5 kept under `tokens/` and removes them; a token stored there without an email
+cannot be filed and has to be logged in again. The login screen writes tokens, a 401 clears the
+one it was for, and clearing the current account makes another one current, on the same server
 when there is one.
+
+Several accounts, on several servers, can be signed in at once, one shown at a time. The Account
+row in Settings is a dropdown of every stored account (`Account.label`: the email alone on
+production, `email (host)` elsewhere) plus "Add account...": picking one calls
+`YafyafApp.switch_account`, which repoints the client at that account's server, reloads the list
+and updates the header, where the server name shows next to the email when it is not production.
+`s` cycles through them. Adding one opens the login screen with a Cancel button instead of Quit
+and, with several servers configured, a Server dropdown defaulting to the server in use. `yaf --as
+EMAIL` (and `yaf new --as EMAIL`) starts on that account, looking on other servers too when no
+`--url` was given, or opens the login screen with the email filled in when it has no token.
+Signing out is in the same row; the screen closes itself before calling
+`YafyafApp.confirm_sign_out` so the confirmation and the login screen behind it are not stacked on
+a modal that is on its way out, and sign out falls back to another stored account when there is
+one.
 
 ## API client
 

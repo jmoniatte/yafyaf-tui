@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from . import __version__
 from .app import YafyafApp
 from .commands import new_yaf
-from .config import DEFAULT_URL, URL_ENV_VAR, TokenStore, resolve_url
+from .config import DEFAULT_URL, URL_ENV_VAR, TokenStore, load_config, resolve_url, url_was_given
 from .terminal_theme import query_terminal
 from .theme import register_terminal_scheme
 
@@ -15,7 +15,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "--url",
         metavar="URL",
-        help=f"YafYaf server to talk to (default: ${URL_ENV_VAR} or {DEFAULT_URL})",
+        help=f"YafYaf server to start on (default: ${URL_ENV_VAR}, else the last account used, else {DEFAULT_URL})",
     )
     parser.add_argument(
         "--as",
@@ -30,15 +30,24 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="new: write a new yaf in $VISUAL or $EDITOR instead of opening the list",
     )
     args = parser.parse_args(argv)
-    url = resolve_url(args.url)
+    config = load_config()
+    store = TokenStore.default()
+    current = store.current()
+    url = resolve_url(args.url, default=current.url if current else config.servers[0])
+    email = args.account or ""
 
     if args.command == "new":
-        raise SystemExit(new_yaf(url, TokenStore.for_url(url), account=args.account or ""))
+        raise SystemExit(new_yaf(url, store, account=email))
+
+    account = store.resolve(url, email)
+    if account is None and email and not url_was_given(args.url):
+        # --as alone names the account wherever it is stored
+        account = store.find(email)
 
     # Must run before Textual takes the tty; a silent terminal just yields None.
     terminal = query_terminal()
     register_terminal_scheme(terminal.scheme, terminal.light_background)
-    app = YafyafApp(url=url, account=args.account or "")
+    app = YafyafApp(url=url, config=config, token_store=store, account=account, login_email="" if account else email)
     app.run()
 
 

@@ -46,22 +46,18 @@ class SettingsScreen(ModalScreen):
 
             with Horizontal(classes="settings-row", id="settings-account-row"):
                 yield Static("Account", classes="settings-label")
-                # The token, not the user: an unreachable server leaves a token whose owner is unknown,
-                # and that is exactly when signing out to clear it matters
-                token = self.app.client.token
+                # Every stored account, on every server; picking one moves the app there
                 accounts = self.app.token_store.accounts()
                 if self.app.account in accounts:
                     yield Select(
-                        options=[(email, email) for email in accounts] + [("Add account...", ADD_ACCOUNT)],
+                        options=[(account.label, account) for account in accounts] + [("Add account...", ADD_ACCOUNT)],
                         value=self.app.account,
                         id="account-selector",
                         allow_blank=False,
                     )
-                elif token:
-                    yield Static("Signed in, server unreachable", id="settings-email")
                 else:
                     yield Static("Not signed in", id="settings-email")
-                if token:
+                if self.app.client.token:
                     yield Button("Sign out", id="btn-sign-out")
 
             yield DashedRule(id="settings-separator")
