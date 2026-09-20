@@ -122,7 +122,8 @@ class InstalledThemesTest(unittest.TestCase):
                     self.assertRegex(value, HEX, f"{name}.{var}")
 
     def test_unknown_theme_falls_back_to_the_default(self):
-        self.assertEqual(load_palette("no-such-theme"), load_palette("onedark"))
+        with self.assertLogs("yafyaf_tui.theme", level="WARNING"):
+            self.assertEqual(load_palette("no-such-theme"), load_palette("onedark"))
 
     def test_theme_names_are_upstream_slugs_verbatim(self):
         self.assertIsNone(resolve_theme("no-such-theme"))
@@ -159,7 +160,8 @@ class TerminalThemeTest(unittest.TestCase):
         register_terminal_scheme(None, light_background=True)
         self.assertEqual(default_theme(), "one-light")
         self.assertEqual(effective_theme("terminal"), "one-light")
-        self.assertEqual(load_palette("no-such-theme"), load_palette("one-light"))
+        with self.assertLogs("yafyaf_tui.theme", level="WARNING"):
+            self.assertEqual(load_palette("no-such-theme"), load_palette("one-light"))
         self.assertNotIn("terminal", selectable_themes())
 
 

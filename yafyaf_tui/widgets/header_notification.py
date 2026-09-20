@@ -15,7 +15,7 @@ class HeaderNotification(Static):
     def show_notification(self, notification: Notification) -> None:
         if self._clear_timer is not None:
             self._clear_timer.stop()
-        message = Content.from_markup(notification.message) if notification.markup else Content(notification.message)
+        message = Content(notification.message)
         content = Content.assemble(notification.title, "\n", message) if notification.title else message
         self.set_classes(f"-{notification.severity}")
         self.update(content)

@@ -6,6 +6,7 @@ from textual.timer import Timer
 from textual.widgets import Static
 
 from ..api import ApiConnectionError, ApiError, AuthenticationError, YafyafClient
+from .app_header import AppHeader
 
 # How long the widget keeps a saying before asking the server for another, as a random range
 POLL_SECONDS = (10.0, 30.0)
@@ -15,7 +16,7 @@ TYPE_SECONDS = 0.025
 
 
 class Echo(Static):
-    """The server's saying, read off the last API response; the score goes to #echo-score in the header.
+    """The server's saying, read off the last API response; the score goes to the header.
 
     Every response repaints both and arms a poll for a fresh one; a response from
     anywhere else in the app pushes the poll back, so it only runs when nothing else has.
@@ -38,9 +39,8 @@ class Echo(Static):
 
     def sync(self) -> None:
         """Show what the client last saw and arm the next poll, or disarm it when signed out."""
-        score = self._client.score
         self._show_saying(self._client.saying)
-        self.screen.query_one("#echo-score", Static).update(str(score) if score is not None else "")
+        self.screen.query_one(AppHeader).show_score(self._client.score)
         self._schedule_poll(enabled=bool(self._client.token))
 
     def _show_saying(self, saying: str) -> None:

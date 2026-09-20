@@ -6,7 +6,6 @@ from textual import on, work
 from textual.app import App, ComposeResult, SuspendNotSupported
 from textual.binding import Binding
 from textual.notifications import Notification, SeverityLevel
-from textual.widgets import Static
 
 from .api import (
     ApiConnectionError,
@@ -23,7 +22,6 @@ from .screens import EDIT_AGAIN, RETRY, ConfirmDialog, Login, LoginScreen, NotSa
 from .shortcuts import GENERAL
 from .theme import effective_theme, load_palette
 from .widgets import (
-    AccountLink,
     AppHeader,
     Echo,
     EditRequested,
@@ -134,15 +132,9 @@ class YafyafApp(App):
     ) -> None:
         """Show notifications in the header instead of as toasts.
 
-        Markup is off by default because messages carry server errors and file paths, which may contain brackets.
+        Messages carry server errors and file paths, which may contain brackets, so markup is never on.
         """
-        notification = Notification(
-            message,
-            title,
-            severity,
-            self.NOTIFICATION_TIMEOUT if timeout is None else timeout,
-            markup=markup,
-        )
+        notification = Notification(message, title, severity, self.NOTIFICATION_TIMEOUT if timeout is None else timeout)
         self.call_later(self._show_notification, notification)
 
     def _show_notification(self, notification: Notification) -> None:
@@ -156,7 +148,7 @@ class YafyafApp(App):
             title=notification.title,
             severity=notification.severity,
             timeout=max(notification.time_left, 0),
-            markup=notification.markup,
+            markup=False,
         )
 
     def on_mount(self) -> None:
@@ -292,11 +284,10 @@ class YafyafApp(App):
             self._ask_login(message)
 
     def _show_account(self) -> None:
-        self.query_one(AccountLink).show(self.account.email if self.account else "")
+        email = self.account.email if self.account else ""
         # Only a non-production server is worth calling out
-        server = self.query_one("#app-url", Static)
-        server.update(server_name(self.url) if self.url != DEFAULT_URL else "")
-        server.display = self.url != DEFAULT_URL
+        server = server_name(self.url) if self.url != DEFAULT_URL else ""
+        self.query_one(AppHeader).show_account(email, server)
 
     def confirm_sign_out(self) -> None:
         """Ask before signing out; the settings screen is the way in."""

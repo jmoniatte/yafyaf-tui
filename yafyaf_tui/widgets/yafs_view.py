@@ -248,15 +248,18 @@ class YafsView(Vertical):
         self.query_one(YafsTable).focus()
         self.post_message(NewYafRequested())
 
-    def action_edit_yaf(self) -> None:
+    def selected_yaf(self) -> Yaf | None:
+        """The highlighted yaf, or None while the list is empty."""
         row = self.query_one(YafsTable).cursor_row
-        if 0 <= row < len(self.yafs):
-            self.post_message(EditRequested(self.yafs[row]))
+        return self.yafs[row] if 0 <= row < len(self.yafs) else None
+
+    def action_edit_yaf(self) -> None:
+        if (yaf := self.selected_yaf()) is not None:
+            self.post_message(EditRequested(yaf))
 
     def action_copy_yaf(self) -> None:
-        row = self.query_one(YafsTable).cursor_row
-        if 0 <= row < len(self.yafs):
-            self.app.copy_to_clipboard(self.yafs[row].content)
+        if (yaf := self.selected_yaf()) is not None:
+            self.app.copy_to_clipboard(yaf.content)
             self.notify("Yaf copied")
 
     def action_search(self) -> None:
@@ -278,9 +281,9 @@ class YafsView(Vertical):
             self.query_one(YafsTable).focus()
 
     @on(DataTable.RowSelected)
-    def _open_selected(self, event: DataTable.RowSelected) -> None:
-        if event.cursor_row < len(self.yafs):
-            self.post_message(YafOpened(self.yafs[event.cursor_row]))
+    def _open_selected(self) -> None:
+        if (yaf := self.selected_yaf()) is not None:
+            self.post_message(YafOpened(yaf))
 
     @on(DataTable.RowHighlighted)
     def _maybe_fetch_more(self, event: DataTable.RowHighlighted) -> None:

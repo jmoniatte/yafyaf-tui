@@ -36,7 +36,6 @@ class LoginScreen(ModalScreen[Login | None]):
         message: str = "",
         email: str = "",
         cancel_label: str = "Quit",
-        client_factory: type[YafyafClient] = YafyafClient,
     ) -> None:
         super().__init__()
         self._servers = servers
@@ -44,7 +43,6 @@ class LoginScreen(ModalScreen[Login | None]):
         self._message = message
         self._email = email
         self._cancel_label = cancel_label
-        self._client_factory = client_factory
 
     def compose(self) -> ComposeResult:
         with Vertical(id="login-dialog"):
@@ -107,7 +105,7 @@ class LoginScreen(ModalScreen[Login | None]):
 
     @work(exclusive=True)
     async def _login(self, url: str, email: str, password: str) -> None:
-        client = self._client_factory(url)
+        client = YafyafClient(url)
         try:
             session = await asyncio.to_thread(client.login, email, password)
         except (ApiError, ApiConnectionError) as error:

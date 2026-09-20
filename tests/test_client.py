@@ -3,7 +3,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from datetime import date, datetime, timezone
+from datetime import date
 from urllib.parse import parse_qs, urlsplit
 
 from yafyaf_tui import __version__
@@ -156,7 +156,8 @@ class ClientTest(unittest.TestCase):
 
     def test_saying_and_score_are_read_off_the_response_headers(self) -> None:
         seen = []
-        client = YafyafClient(self.base_url, token="good-token", on_response=lambda: seen.append(client.score))
+        client = YafyafClient(self.base_url, token="good-token")
+        client.on_response = lambda: seen.append(client.score)
         client.me()
         self.assertEqual((client.saying, client.score), ("There is always time.", 94))
 
@@ -213,9 +214,7 @@ class ClientTest(unittest.TestCase):
         self.assertEqual([yaf.id for yaf in page.yafs], ["y1", "y2"])
         first, second = page.yafs
         self.assertEqual(first.date, date(2026, 9, 13))
-        self.assertEqual(first.summary, "First yaf")
-        self.assertEqual(first.updated_at, datetime(2026, 9, 13, 11, tzinfo=timezone.utc))
-        self.assertIsNone(second.created_at)
+        self.assertEqual((first.summary, second.summary), ("First yaf", "Second yaf"))
 
         last = client.list_yafs(page=2)
         self.assertNotIn("q=", FakeYafyaf.requests[1]["path"])

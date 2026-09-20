@@ -3,7 +3,7 @@
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from http import HTTPStatus
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -41,11 +41,10 @@ class ApiConnectionError(Exception):
 class User:
     id: str
     email: str
-    locale: str | None = None
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> "User":
-        return cls(id=str(data["id"]), email=data["email"], locale=data.get("locale"))
+        return cls(id=str(data["id"]), email=data["email"])
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,18 +60,10 @@ class Yaf:
     id: str
     content: str
     date: date
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> "Yaf":
-        return cls(
-            id=str(data["id"]),
-            content=data.get("content") or "",
-            date=date.fromisoformat(data["date"]),
-            created_at=_parse_datetime(data.get("created_at")),
-            updated_at=_parse_datetime(data.get("updated_at")),
-        )
+        return cls(id=str(data["id"]), content=data.get("content") or "", date=date.fromisoformat(data["date"]))
 
     @property
     def summary(self) -> str:
@@ -103,21 +94,15 @@ class YafPage:
 
 
 class YafyafClient:
-    def __init__(
-        self,
-        base_url: str,
-        token: str = "",
-        timeout: float = DEFAULT_TIMEOUT,
-        on_response: Callable[[], None] | None = None,
-    ) -> None:
+    def __init__(self, base_url: str, token: str = "", timeout: float = DEFAULT_TIMEOUT) -> None:
         self.base_url = base_url.rstrip("/")
         self.token = token
         self.timeout = timeout
-        # Every response carries a saying, and authenticated ones the user's score; on_response
-        # runs on the calling thread after they are updated
+        # Every response carries a saying, and authenticated ones the user's score; on_response,
+        # when set, runs on the calling thread after they are updated
         self.saying = ""
         self.score: int | None = None
-        self.on_response = on_response
+        self.on_response: Callable[[], None] | None = None
 
     def login(self, email: str, password: str) -> Session:
         """Exchange credentials for a token and remember it on this client."""
@@ -210,12 +195,6 @@ class YafyafClient:
 
 def _yaf_fields(content: str, day: date) -> dict[str, str]:
     return {"content": content, "date": day.isoformat()}
-
-
-def _parse_datetime(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 def _parse_json(raw: bytes) -> dict[str, Any]:

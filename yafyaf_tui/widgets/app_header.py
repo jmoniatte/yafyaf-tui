@@ -23,7 +23,10 @@ class AccountLink(Static):
 
 
 class AppHeader(Horizontal):
-    """The title bar, the notification area, the server when it is not production, the account and the score."""
+    """The title bar, the notification area, the server when it is not production, the account and the score.
+
+    The app and the saying widget fill the labels through show_account and show_score.
+    """
 
     def __init__(self, **kwargs) -> None:
         super().__init__(id="app-header", **kwargs)
@@ -35,6 +38,16 @@ class AppHeader(Horizontal):
         yield Static("", classes="header-notification-spacer")
         yield HeaderNotification()
         yield Static("", id="header-spacer")
-        yield Static("", id="app-url")  # The app fills in the server, when it is not production
-        yield Static("", id="echo-score")  # Filled by Echo
-        yield AccountLink("Settings", id="app-account", markup=False)  # The app fills in the email in use
+        yield Static("", id="app-url")
+        yield Static("", id="echo-score")
+        yield AccountLink("Settings", id="app-account", markup=False)
+
+    def show_account(self, email: str, server: str = "") -> None:
+        """The email in use, and the server's name when it is worth calling out; "" hides either."""
+        self.query_one(AccountLink).show(email)
+        url = self.query_one("#app-url", Static)
+        url.update(server)
+        url.display = bool(server)
+
+    def show_score(self, score: int | None) -> None:
+        self.query_one("#echo-score", Static).update(str(score) if score is not None else "")
