@@ -1,0 +1,93 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   DIALOGS (confirm, not saved)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+Dialog {
+    align: center top;
+    background: $bg 80%;
+}
+
+Dialog > Vertical {
+    width: auto;
+    min-width: 40;
+    max-width: 60;
+    background: $bg-dark;
+    border: none;
+    padding: 1 2;
+}
+
+Dialog #dialog-title {
+    text-style: bold;
+    color: $red;
+    margin-bottom: 1;
+}
+
+Dialog #dialog-message {
+    color: $fg;
+}
+
+Dialog #dialog-detail {
+    margin-top: 1;
+    color: $comment;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+Dialog #dialog-buttons {
+    height: 1;
+    align: right middle;
+    margin-top: 1;
+}
+
+Dialog Button {
+    width: auto;
+    min-width: 0;
+    border: none;
+    margin: 0 0 0 1;
+    padding: 0 2;
+}
+
+Dialog Button.-plain {
+    background: $bg-light;
+    color: $fg;
+}
+
+Dialog Button.-plain:hover {
+    background: $gutter;
+}
+
+Dialog Button.-plain:focus {
+    background: $blue;
+    color: $bg-dark;
+    text-style: bold;
+}
+
+Dialog Button.-danger {
+    background: $red 30%;
+    color: $red;
+}
+
+Dialog Button.-danger:hover {
+    background: $red 50%;
+}
+
+Dialog Button.-danger:focus {
+    background: $red;
+    color: white;
+    text-style: bold;
+}
+
+Dialog Button.-action {
+    background: $blue 30%;
+    color: $blue;
+}
+
+Dialog Button.-action:hover {
+    background: $blue 50%;
+}
+
+Dialog Button.-action:focus {
+    background: $blue;
+    color: $bg-dark;
+    text-style: bold;
+}

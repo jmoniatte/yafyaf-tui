@@ -1,13 +1,20 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   BASE STYLES - Layout and structure (colors come from theme)
+   LOGIN SCREEN
    ═══════════════════════════════════════════════════════════════════════ */
 
-Screen {
-    background: $bg;
-    color: $fg;
-    border: solid $gutter;
+LoginScreen {
+    align: center top;
+    background: $bg 80%;
 }
 
-ModalScreen {
-    border: none;
+LoginScreen #login-url {
+    color: $comment;
+    margin: 1 0;
+}
+
+LoginScreen #login-error {
+    height: auto;
+    min-height: 1;
+    color: $red;
+    margin-top: 1;
 }

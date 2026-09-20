@@ -8,14 +8,24 @@ import asyncio
 
 from textual import work
 
-from .accounts import Account
-from .api import ApiConnectionError, ApiError, AuthenticationError
-from .config import DEFAULT_URL, server_name
+from .accounts import Account, TokenStore
+from .api import ApiConnectionError, ApiError, AuthenticationError, User, YafyafClient
+from .config import DEFAULT_URL, Config, server_name
 from .screens import ConfirmDialog, Login, LoginScreen
-from .widgets import AppHeader, YafsView
+from .widgets import AppHeader, MainArea, YafsView
 
 
 class AccountFlow:
+    # Set by YafyafApp, which this mixes into
+    config: Config
+    token_store: TokenStore
+    client: YafyafClient
+    account: Account | None
+    url: str
+    servers: list[str]
+    user: User | None
+    main: MainArea
+
     @work(exclusive=True)
     async def _check_token(self) -> None:
         """Confirm the stored token still works before showing anything that needs it."""

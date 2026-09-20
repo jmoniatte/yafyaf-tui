@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from yafyaf_tui.app import load_stylesheet
 from yafyaf_tui.theme import (
     BASE16_SLOTS,
     default_theme,
@@ -17,7 +18,6 @@ from yafyaf_tui.theme import (
     selectable_themes,
 )
 
-BASE_TCSS = Path(__file__).resolve().parents[1] / "yafyaf_tui" / "styles" / "base.tcss"
 HEX = re.compile(r"^#[0-9a-f]{6}$")
 
 ACCENTS = {
@@ -109,8 +109,8 @@ class DerivedSurfacesTest(unittest.TestCase):
 
 
 class InstalledThemesTest(unittest.TestCase):
-    def test_every_theme_fills_each_variable_base_tcss_uses(self):
-        required = set(re.findall(r"\$([\w-]+)", BASE_TCSS.read_text()))
+    def test_every_theme_fills_each_variable_the_stylesheets_use(self):
+        required = set(re.findall(r"\$([\w-]+)", load_stylesheet()))
         self.assertIn("bg-dark", required)
         installed = list_themes()
         self.assertIn("onedark", installed)

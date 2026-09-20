@@ -1,13 +1,21 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   BASE STYLES - Layout and structure (colors come from theme)
+   ECHO
    ═══════════════════════════════════════════════════════════════════════ */
 
-Screen {
-    background: $bg;
-    color: $fg;
-    border: solid $gutter;
+/* In flow under the list rather than docked, so it sits above the status line when that shows */
+#echo {
+    height: 2;
+    padding: 0 1;
+    border-top: solid $gutter;
+    color: $comment;
+    text-style: italic;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
 }
 
-ModalScreen {
-    border: none;
+/* The score sits in the header, left of the account */
+#echo-score {
+    width: auto;
+    margin-left: 2;
+    color: $green;
 }

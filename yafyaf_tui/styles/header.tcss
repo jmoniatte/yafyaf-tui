@@ -1,0 +1,79 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   APP HEADER
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#app-header {
+    dock: top;
+    height: auto;
+    background: $bg;
+    padding: 0 1;
+    border-bottom: solid $gutter;
+}
+
+#app-title-group {
+    width: auto;
+    height: auto;
+}
+
+#header-spacer {
+    width: 1fr;
+}
+
+.header-notification-spacer {
+    width: 1fr;
+}
+
+#app-title {
+    width: auto;
+    text-style: bold;
+    color: $blue;
+    background: transparent;
+}
+
+#app-title:hover {
+    color: $blue;
+    text-style: bold underline;
+    background: transparent;
+}
+
+#app-subtitle {
+    width: auto;
+    color: $comment;
+}
+
+#app-url {
+    width: auto;
+    color: $yellow;
+}
+
+/* The account is the way into Settings with the mouse, so it reads as a link */
+#app-account {
+    width: auto;
+    margin-left: 2;
+    color: $blue;
+}
+
+#app-account:hover {
+    text-style: underline;
+}
+
+HeaderNotification {
+    width: 40%;
+    height: auto;
+    max-height: 2;
+    padding: 0 1;
+}
+
+HeaderNotification.-information {
+    color: $green;
+}
+
+HeaderNotification.-warning {
+    color: $yellow;
+}
+
+/* An extra line so a failed save's kept-draft path is not cut off */
+HeaderNotification.-error {
+    max-height: 3;
+    color: $red;
+}

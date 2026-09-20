@@ -19,7 +19,7 @@ from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.config import Config
 from yafyaf_tui.screens import ConfirmDialog, NotSavedDialog
 from yafyaf_tui.widgets import Echo, YafDetail, YafsTable, YafsView
-from yafyaf_tui.widgets.yafs_view import DATE_WIDTH, summary_text
+from yafyaf_tui.widgets.yafs_table import DATE_WIDTH, summary_text
 
 from support import ME_ACCOUNT, ONE_PAGE, YAFS, header_message, patched_editor, patched_get, patched_list, patched_me, python_editor, row_text, settle
 

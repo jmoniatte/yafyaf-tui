@@ -7,7 +7,8 @@ from ..api import Yaf, YafyafClient
 from .echo import Echo
 from .offline_notice import OfflineNotice
 from .yaf_detail import YafDetail
-from .yafs_view import YafsTable, YafsView
+from .yafs_table import ListColors, YafsTable
+from .yafs_view import YafsView
 
 PANES = (YafsView, YafDetail, OfflineNotice)
 
@@ -18,14 +19,14 @@ class MainArea(Vertical):
     `viewing` is the yaf on show, or None: the editor returns to the view when it started there.
     """
 
-    def __init__(self, client: YafyafClient, **rich_colors: str) -> None:
+    def __init__(self, client: YafyafClient, colors: ListColors) -> None:
         super().__init__(id="main-area")
         self._client = client
-        self._rich_colors = rich_colors
+        self._colors = colors
         self.viewing: Yaf | None = None
 
     def compose(self) -> ComposeResult:
-        yield YafsView(self._client, **self._rich_colors)
+        yield YafsView(self._client, self._colors)
         yield YafDetail()
         yield OfflineNotice()
         yield Echo(self._client)

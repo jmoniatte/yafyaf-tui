@@ -7,19 +7,18 @@ from textual.app import App, ComposeResult
 from textual.containers import Vertical
 from textual.widgets import DataTable, Input, Static
 
-from yafyaf_tui.app import YafyafApp
+from yafyaf_tui.app import YafyafApp, load_stylesheet
 from yafyaf_tui.accounts import TokenStore
 from yafyaf_tui.config import Config
 from yafyaf_tui.screens import ThemePicker
 from yafyaf_tui.theme import load_palette
 
-BASE_TCSS = (Path(__file__).resolve().parents[1] / "yafyaf_tui" / "styles" / "base.tcss").read_text()
 
 
 class PickerApp(App):
     """Minimal host that serves the palette the way YafyafApp does."""
 
-    CSS = BASE_TCSS
+    CSS = load_stylesheet()
 
     def __init__(self, theme: str = "onedark") -> None:
         self._palette = load_palette(theme)
@@ -122,7 +121,7 @@ class YafyafAppThemeTests(unittest.TestCase):
             asyncio.run(main())
 
         self.assertEqual(app.get_css_variables()["bg"], dracula["bg"])
-        self.assertEqual(app._rich_colors()["link_color"], dracula["blue"])
+        self.assertEqual(app._list_colors().link, dracula["blue"])
 
 
 if __name__ == "__main__":

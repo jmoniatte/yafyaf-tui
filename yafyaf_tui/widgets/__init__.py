@@ -5,7 +5,8 @@ from .main_area import MainArea
 from .offline_notice import OfflineNotice, RetryRequested
 from .web_link import WebLink
 from .yaf_detail import ViewClosed, YafDetail
-from .yafs_view import EditRequested, NewYafRequested, YafOpened, YafsTable, YafsView
+from .yafs_table import ListColors, YafsTable
+from .yafs_view import EditRequested, NewYafRequested, YafOpened, YafsView
 
 __all__ = [
     "AccountLink",
@@ -13,6 +14,7 @@ __all__ = [
     "Echo",
     "EditRequested",
     "HeaderNotification",
+    "ListColors",
     "MainArea",
     "NewYafRequested",
     "OfflineNotice",

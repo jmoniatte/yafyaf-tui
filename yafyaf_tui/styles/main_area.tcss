@@ -1,0 +1,96 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   MAIN AREA
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#main-area {
+    height: 1fr;
+}
+
+#yafs-view {
+    padding: 0 1;
+    height: 1fr;
+}
+
+#yafs-controls {
+    height: auto;
+    background: transparent;
+}
+
+#yafs-view #search {
+    width: 1fr;
+    background: $bg;
+    color: $fg;
+    border: solid $gutter;
+}
+
+#yafs-view #search:focus {
+    border: solid $blue;
+}
+
+/* The search box is 3 rows with its border; the top margin lines the button up with its text */
+#yafs-controls Button {
+    margin: 1 0 0 3;
+    width: auto;
+    min-width: 0;
+    border: none;
+    padding: 0 2;
+}
+
+#btn-new-yaf {
+    background: $blue 30%;
+    color: $blue;
+}
+
+#btn-new-yaf:hover {
+    background: $blue 50%;
+}
+
+#btn-new-yaf:focus {
+    background: $blue;
+    color: $bg-dark;
+    text-style: bold;
+}
+
+#yafs-table {
+    height: 1fr;
+    background: transparent;
+    /* The theme's text color, like Flotte; Textual's default is near white */
+    color: $fg;
+    scrollbar-size-vertical: 1;
+    /* Same scrollbar colors as Flotte */
+    scrollbar-background: $bg;
+    scrollbar-background-hover: $bg;
+    scrollbar-background-active: $bg;
+    scrollbar-color: $gutter;
+    scrollbar-color-hover: $comment;
+    scrollbar-color-active: $blue;
+    overflow-x: hidden;
+}
+
+#yafs-table > .datatable--cursor {
+    background: $bg-light;
+    color: auto;
+    text-style: none;
+}
+
+#yafs-table > .datatable--hover {
+    background: transparent;
+}
+
+#yafs-header {
+    height: 1;
+    color: $comment;
+}
+
+#yafs-header-rule {
+    height: 1;
+    color: $comment;
+}
+
+#yafs-header-summary {
+    width: 1fr;
+}
+
+#yafs-status {
+    width: auto;
+}

@@ -10,13 +10,17 @@ from datetime import date
 from textual import work
 from textual.app import SuspendNotSupported
 
-from .api import ApiConnectionError, ApiError, NotFoundError, Yaf
+from .api import ApiConnectionError, ApiError, NotFoundError, Yaf, YafyafClient
 from .editor import Draft, DraftError, EditorError, Entry
 from .screens import EDIT_AGAIN, RETRY, ConfirmDialog, NotSavedDialog
-from .widgets import YafsView
+from .widgets import MainArea, YafsView
 
 
 class EditFlow:
+    # Set by YafyafApp, which this mixes into
+    client: YafyafClient
+    main: MainArea
+
     @work(exclusive=True, group="open")
     async def _fetch_and_show(self, yaf: Yaf) -> None:
         current = await self._fetch_current(yaf)

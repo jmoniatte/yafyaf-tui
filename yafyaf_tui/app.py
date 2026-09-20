@@ -17,6 +17,7 @@ from .widgets import (
     AppHeader,
     EditRequested,
     HeaderNotification,
+    ListColors,
     MainArea,
     NewYafRequested,
     RetryRequested,
@@ -27,6 +28,12 @@ from .widgets import (
 )
 
 STYLES_DIR = Path(__file__).parent / "styles"
+# One stylesheet per component, in cascade order: later files may rely on rules in earlier ones
+STYLE_FILES = ("base", "header", "main_area", "yaf_detail", "echo", "settings", "modal_forms", "dialogs", "login", "theme_picker")
+
+
+def load_stylesheet() -> str:
+    return "\n".join((STYLES_DIR / f"{name}.tcss").read_text() for name in STYLE_FILES)
 
 
 class YafyafApp(AccountFlow, EditFlow, App):
@@ -66,24 +73,19 @@ class YafyafApp(AccountFlow, EditFlow, App):
         # The palette is served from get_css_variables rather than baked into
         # CSS, so apply_theme can swap it without restarting.
         self._palette = load_palette(self.config.theme)
-        self.CSS = (STYLES_DIR / "base.tcss").read_text()
+        self.CSS = load_stylesheet()
         super().__init__()
 
     def compose(self) -> ComposeResult:
         yield AppHeader()
-        yield MainArea(self.client, **self._rich_colors())
+        yield MainArea(self.client, self._list_colors())
 
     @property
     def main(self) -> MainArea:
         return self.query_one(MainArea)
 
-    def _rich_colors(self) -> dict[str, str]:
-        """The palette entries the yaf list renders through Rich, where TCSS variables do not reach."""
-        return {
-            "date_color": self._palette["comment"],
-            "link_color": self._palette["blue"],
-            "heading_color": self._palette["yellow"],
-        }
+    def _list_colors(self) -> ListColors:
+        return ListColors(date=self._palette["comment"], link=self._palette["blue"], heading=self._palette["yellow"])
 
     def get_css_variables(self) -> dict[str, str]:
         """Serve the base16 palette to the stylesheet alongside Textual's own."""
@@ -122,7 +124,7 @@ class YafyafApp(AccountFlow, EditFlow, App):
         self._palette = load_palette(theme_name)
         self.refresh_css()
         # refresh_css only re-applies TCSS; the list bakes its colors into Rich text
-        self.query_one(YafsView).set_colors(**self._rich_colors())
+        self.query_one(YafsView).set_colors(self._list_colors())
 
     # -- notifications
 

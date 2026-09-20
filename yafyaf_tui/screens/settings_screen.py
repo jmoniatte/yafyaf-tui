@@ -10,7 +10,8 @@ from ..theme import effective_theme, selectable_themes
 from ..widgets.dashed_rule import DashedRule
 from ..widgets.web_link import WebLink
 from ..widgets.yaf_detail import YafDetail
-from ..widgets.yafs_view import YafsTable, YafsView
+from ..widgets.yafs_table import YafsTable
+from ..widgets.yafs_view import YafsView
 
 ADD_ACCOUNT = "+"
 

@@ -1,7 +1,7 @@
 """base16 scheme loading and the slot -> TCSS variable mapping.
 
 Themes are base16 scheme files (github.com/tinted-theming/schemes) used
-unmodified. base16 defines 16 slots; `base.tcss` needs 13 variables, 11 of
+unmodified. base16 defines 16 slots; the stylesheets need 13 variables, 11 of
 which map straight onto a slot. The remaining two -- a recessed surface and a
 border colour -- are derived from the scheme's own greyscale ramp so that no
 theme needs hand-picked values.

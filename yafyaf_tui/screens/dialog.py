@@ -16,7 +16,7 @@ class DialogButton:
     label: str
     result: object
     id: str
-    # plain, danger or action; base.tcss styles each
+    # plain, danger or action; dialogs.tcss styles each
     kind: str = "plain"
 
 

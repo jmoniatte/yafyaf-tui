@@ -1,0 +1,173 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   SETTINGS SCREEN
+   ═══════════════════════════════════════════════════════════════════════ */
+
+SettingsScreen {
+    align: center top;
+    background: $bg 80%;
+}
+
+SettingsScreen > Vertical {
+    width: auto;
+    min-width: 84;
+    max-width: 90;
+    height: auto;
+    max-height: 80%;
+    background: $bg-dark;
+    border: none;
+    padding: 1 2;
+    margin-top: 4;
+}
+
+SettingsScreen Static {
+    color: $fg;
+}
+
+SettingsScreen #dialog-title {
+    text-style: bold;
+    color: $blue;
+    border-bottom: ascii $gutter;
+}
+
+SettingsScreen #title-separator {
+    height: 1;
+}
+
+SettingsScreen .settings-row {
+    height: 1;
+    margin-bottom: 1;
+    align: left middle;
+}
+
+SettingsScreen .settings-label {
+    width: 10;
+    color: $comment;
+}
+
+SettingsScreen Select {
+    width: 1fr;
+    height: 1;
+}
+
+SettingsScreen Select SelectCurrent {
+    background: transparent;
+    border: none !important;
+    padding: 0;
+    color: $fg;
+}
+
+SettingsScreen Select SelectCurrent:hover,
+SettingsScreen Select:focus SelectCurrent {
+    color: $blue;
+}
+
+SettingsScreen Select SelectOverlay {
+    background: $bg;
+    border: none;
+    max-height: 12;
+    scrollbar-size: 0 0;
+}
+
+SettingsScreen Select SelectOverlay > .option-list--option-highlighted {
+    background: $bg-light;
+    color: $fg;
+    text-style: none;
+}
+
+SettingsScreen #settings-email {
+    width: 1fr;
+}
+
+SettingsScreen #btn-sign-out {
+    width: auto;
+    min-width: 0;
+    height: 1;
+    border: none;
+    margin: 0 0 0 2;
+    padding: 0 2;
+    background: $comment 30%;
+    color: $fg;
+}
+
+SettingsScreen #btn-sign-out:hover {
+    background: $comment 50%;
+}
+
+SettingsScreen #btn-sign-out:focus {
+    background: $blue;
+    color: $bg-dark;
+    text-style: bold;
+}
+
+SettingsScreen #settings-separator {
+    height: 1;
+    color: $comment;
+    margin-bottom: 1;
+}
+
+SettingsScreen .section-title {
+    text-style: bold;
+    color: $fg;
+    border-bottom: ascii $gutter;
+}
+
+SettingsScreen #shortcuts-sections {
+    height: auto;
+}
+
+SettingsScreen .shortcuts-section {
+    height: auto;
+}
+
+SettingsScreen #shortcuts-actions {
+    width: 1fr;
+    margin-right: 2;
+}
+
+SettingsScreen #shortcuts-general {
+    width: 1fr;
+}
+
+SettingsScreen .shortcut-row {
+    height: 1;
+}
+
+SettingsScreen .shortcut-key {
+    width: 8;
+    color: $green;
+}
+
+SettingsScreen .shortcut-desc {
+    color: $fg;
+}
+
+SettingsScreen #settings-footer-spacer {
+    height: 1;
+}
+
+SettingsScreen #settings-footer {
+    height: 1;
+    align: right middle;
+}
+
+SettingsScreen #settings-footer .spacer {
+    width: 1fr;
+}
+
+SettingsScreen #settings-version {
+    width: auto;
+    margin-left: 1;
+    color: $comment;
+}
+
+SettingsScreen #settings-repository {
+    width: auto;
+    color: $blue;
+    background: transparent;
+}
+
+SettingsScreen #settings-repository:hover {
+    color: $blue;
+    text-style: underline;
+    background: transparent;
+}

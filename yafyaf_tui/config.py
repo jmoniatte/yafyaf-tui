@@ -58,35 +58,41 @@ def load_config(path: Path = CONFIG_FILE) -> Config:
         config.warnings.append("Config file must contain a mapping of settings")
         return config
 
-    theme = data.get("theme")
-    if isinstance(theme, str) and theme.strip():
-        if is_known_theme(theme.strip()):
-            config.theme = theme.strip()
-        else:
-            config.theme = default_theme()
-            # Too many themes to list; a near-miss is the useful hint.
-            near = get_close_matches(theme.strip(), list_themes(), n=3)
-            hint = f" Did you mean: {', '.join(near)}?" if near else ""
-            config.warnings.append(
-                f"theme: '{theme.strip()}' is not installed, using '{config.theme}'.{hint}"
-            )
-
-    servers = data.get("servers")
-    if servers is not None:
-        if not isinstance(servers, list) or not all(isinstance(url, str) for url in servers):
-            config.warnings.append("servers: must be a list of URLs")
-        else:
-            valid = []
-            for url in servers:
-                url = normalize_url(url)
-                if urlsplit(url).scheme in ("http", "https") and urlsplit(url).netloc:
-                    if url not in valid:
-                        valid.append(url)
-                else:
-                    config.warnings.append(f"servers: '{url}' is not a URL, ignoring it")
-            if valid:
-                config.servers = valid
+    _read_theme(data.get("theme"), config)
+    _read_servers(data.get("servers"), config)
     return config
+
+
+def _read_theme(theme: object, config: Config) -> None:
+    if not isinstance(theme, str) or not theme.strip():
+        return
+    theme = theme.strip()
+    if is_known_theme(theme):
+        config.theme = theme
+        return
+    config.theme = default_theme()
+    # Too many themes to list; a near-miss is the useful hint.
+    near = get_close_matches(theme, list_themes(), n=3)
+    hint = f" Did you mean: {', '.join(near)}?" if near else ""
+    config.warnings.append(f"theme: '{theme}' is not installed, using '{config.theme}'.{hint}")
+
+
+def _read_servers(servers: object, config: Config) -> None:
+    if servers is None:
+        return
+    if not isinstance(servers, list) or not all(isinstance(url, str) for url in servers):
+        config.warnings.append("servers: must be a list of URLs")
+        return
+    valid: list[str] = []
+    for url in servers:
+        url = normalize_url(url)
+        if urlsplit(url).scheme in ("http", "https") and urlsplit(url).netloc:
+            if url not in valid:
+                valid.append(url)
+        else:
+            config.warnings.append(f"servers: '{url}' is not a URL, ignoring it")
+    if valid:
+        config.servers = valid
 
 
 def save_theme(theme: str, path: Path = CONFIG_FILE) -> None:

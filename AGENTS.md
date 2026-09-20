@@ -45,13 +45,13 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
     theme.py            # base16 scheme loading, palette derivation
     terminal_theme.py   # OSC queries that read the terminal's own palette before Textual starts
     widgets/            # Textual widgets (main_area.py: shows one of the three panes below, plus the saying;
-                        # yafs_view.py: search box + list, paged from the API;
+                        # yafs_view.py: search box + list, paged from the API; yafs_table.py: its rows;
                         # echo.py: saying + score from the x-yaf-* response headers, polled when idle;
                         # offline_notice.py: replaces the list, and its keys, while the server is down;
                         # yaf_detail.py: one yaf as markdown in place of the list, Enter opens it, e edits)
     screens/            # Textual screens (settings, login, theme picker; dialog.py is the base of the
                         # confirm and not-saved dialogs, each a list of DialogButton)
-    styles/             # base.tcss (layout) + themes/*.yaml (base16 schemes)
+    styles/             # one .tcss per component, joined in app.STYLE_FILES order; themes/*.yaml (base16 schemes)
 ```
 
 ## Themes
@@ -59,7 +59,7 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
 `yafyaf_tui/styles/themes/` holds the whole
 [base16 catalogue](https://github.com/tinted-theming/schemes), one scheme file
 per theme, copied in unmodified - never hand-edit one. `theme.py` maps 11 of
-the 16 slots straight onto the TCSS variables `base.tcss` uses and derives the
+the 16 slots straight onto the TCSS variables the stylesheets use and derives the
 other two (`$bg-dark`, `$gutter`) from the scheme's greyscale ramp, so adding a
 theme means adding a file and nothing else. `config.py` rejects a `theme` that
 does not name one of them.
@@ -83,7 +83,7 @@ hyphens (`onedark` but `one-light`); follow it rather than tidying it.
 
 `scripts/sync_themes.py` refreshes the directory from upstream. It is the only
 place the editorial rule lives: a scheme whose own `$fg` on `$bg` falls below
-`MIN_TEXT_CONTRAST` (WCAG AA) is skipped, since `base.tcss` cannot rescue it.
+`MIN_TEXT_CONTRAST` (WCAG AA) is skipped, since the stylesheets cannot rescue it.
 Do not hand-add a scheme the script would reject.
 
 Settings (`?` or clicking the email in the header) has a theme dropdown; the picker (`t`) previews as the cursor
@@ -93,7 +93,7 @@ rather than baked into `CSS`. `refresh_css` only re-applies TCSS, so the yaf
 list, which bakes colors into Rich text, is repainted through
 `YafsView.set_colors`.
 
-Never hardcode a color in `base.tcss`.
+Never hardcode a color in a `.tcss` file.
 
 ## Viewing and editing
 
@@ -107,7 +107,7 @@ confirmed deleted drops back to the list. Escape and `q` leave the view; `q` onl
 server refused it, opens `NotSavedDialog` over the kept draft: Edit again reopens that same
 draft, Retry (server errors only) sends it again, Discard deletes it. There is no Escape. Shift+Enter only reaches the app in terminals that speak the
 kitty keyboard protocol; `e` is the key that works everywhere. The markdown styles are
-mapped onto the palette in `base.tcss` under `#yaf-detail-markdown`.
+mapped onto the palette in `yaf_detail.tcss` under `#yaf-detail-markdown`.
 
 ## Servers, config and accounts
 
