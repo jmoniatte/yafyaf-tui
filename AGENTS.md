@@ -35,7 +35,8 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
   yafyaf_tui/           # Python package
     app.py              # Main Textual app
     commands.py         # Shell commands that skip the TUI (yaf new)
-    config.py           # Server URL resolution, optional config.yaml, TokenStore
+    config.py           # Server URL resolution, optional config.yaml (theme, servers)
+    accounts.py         # Account (server + email) and TokenStore, the single tokens.yaml
     editor.py           # Draft: a yaf as a temp .md file (date in front matter), edited in $VISUAL or $EDITOR
     api/client.py       # Blocking urllib client for /api/; call it via asyncio.to_thread
     shortcuts.py        # Help screen contents, read off the bindings

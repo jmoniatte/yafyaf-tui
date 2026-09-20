@@ -27,7 +27,8 @@ from yafyaf_tui.api import (
 )
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.commands import new_yaf
-from yafyaf_tui.config import DEFAULT_URL, Account, Config, TokenStore
+from yafyaf_tui.accounts import Account, TokenStore
+from yafyaf_tui.config import DEFAULT_URL, Config
 from yafyaf_tui.screens import ConfirmDialog, LoginScreen, NotSavedDialog, SettingsScreen
 from yafyaf_tui.screens.settings_screen import ADD_ACCOUNT
 from yafyaf_tui.terminal_theme import TerminalReport

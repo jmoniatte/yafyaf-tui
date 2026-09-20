@@ -8,7 +8,8 @@ from textual.containers import Vertical
 from textual.widgets import DataTable, Input, Static
 
 from yafyaf_tui.app import YafyafApp
-from yafyaf_tui.config import Config, TokenStore
+from yafyaf_tui.accounts import TokenStore
+from yafyaf_tui.config import Config
 from yafyaf_tui.screens import ThemePicker
 from yafyaf_tui.theme import load_palette
 
@@ -107,7 +108,7 @@ class YafyafAppThemeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             app = YafyafApp(
                 config=Config(theme="onedark"),
-                token_store=TokenStore(Path(directory) / "token"),
+                token_store=TokenStore(Path(directory) / "tokens.yaml"),
             )
             onedark, dracula = load_palette("onedark"), load_palette("dracula")
             self.assertEqual(app.get_css_variables()["bg"], onedark["bg"])

@@ -4,7 +4,8 @@ from collections.abc import Sequence
 from . import __version__
 from .app import YafyafApp
 from .commands import new_yaf
-from .config import DEFAULT_URL, URL_ENV_VAR, TokenStore, load_config, resolve_url, url_was_given
+from .accounts import TokenStore
+from .config import DEFAULT_URL, URL_ENV_VAR, load_config, resolve_url, url_was_given
 from .terminal_theme import query_terminal
 from .theme import register_terminal_scheme
 

@@ -4,7 +4,7 @@ import sys
 from datetime import date
 
 from .api import ApiConnectionError, ApiError, AuthenticationError, YafyafClient
-from .config import TokenStore
+from .accounts import TokenStore
 from .editor import Draft, DraftError, EditorError
 
 

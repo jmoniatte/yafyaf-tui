@@ -16,7 +16,8 @@ from .api import (
     Yaf,
     YafyafClient,
 )
-from .config import DEFAULT_URL, Account, Config, TokenStore, load_config, save_theme, server_name
+from .accounts import Account, TokenStore
+from .config import DEFAULT_URL, Config, load_config, save_theme, server_name
 from .editor import Draft, DraftError, EditorError, Entry
 from .screens import EDIT_AGAIN, RETRY, ConfirmDialog, Login, LoginScreen, NotSavedDialog, SettingsScreen, ThemePicker
 from .shortcuts import GENERAL
