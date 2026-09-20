@@ -223,7 +223,7 @@ class SessionsTest(unittest.TestCase):
                     await settle(app, pilot)
                     self.assertEqual(app.user, ME)
                     self.assertEqual(app.query_one("#app-account", Static).content, ME.email)
-                    self.assertEqual(app.query_one("#echo-score", Static).content, "94")
+                    self.assertEqual(app.query_one("#header-score", Static).content, "94")
 
                     await pilot.press("?")
                     await pilot.pause()
@@ -241,7 +241,7 @@ class SessionsTest(unittest.TestCase):
                     self.assertEqual(app.client.token, "sayings-token")
                     self.assertEqual(self.store.current(), SAYINGS_ACCOUNT)
                     self.assertEqual(app.query_one("#app-account", Static).content, SAYINGS.email)
-                    self.assertEqual(app.query_one("#echo-score", Static).content, "3")
+                    self.assertEqual(app.query_one("#header-score", Static).content, "3")
                     self.assertEqual(list_yafs.call_count, 2)
 
                     # Adding an account closes settings and asks to log in; cancelling keeps the current one

@@ -1,5 +1,5 @@
 from .app_header import AccountLink, AppHeader, SettingsRequested
-from .echo import Echo
+from .saying import Saying
 from .header_notification import HeaderNotification
 from .main_area import MainArea
 from .offline_notice import OfflineNotice, RetryRequested
@@ -11,7 +11,7 @@ from .yafs_view import EditRequested, NewYafRequested, YafOpened, YafsView
 __all__ = [
     "AccountLink",
     "AppHeader",
-    "Echo",
+    "Saying",
     "EditRequested",
     "HeaderNotification",
     "ListColors",

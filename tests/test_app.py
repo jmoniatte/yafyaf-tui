@@ -11,7 +11,7 @@ from yafyaf_tui.accounts import TokenStore
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.config import DEFAULT_URL, Config
 from yafyaf_tui.screens import SettingsScreen
-from yafyaf_tui.widgets import AccountLink, Echo, HeaderNotification, YafDetail, YafsTable, YafsView
+from yafyaf_tui.widgets import AccountLink, Saying, HeaderNotification, YafDetail, YafsTable, YafsView
 
 from support import ME, ME_ACCOUNT, ONE_PAGE, header_message, patched_list, patched_me, settle
 
@@ -102,7 +102,7 @@ class AppTest(unittest.TestCase):
 
         asyncio.run(exercise())
 
-    def test_echo_shows_the_saying_and_score_from_the_last_response(self) -> None:
+    def test_the_saying_and_score_come_from_the_last_response(self) -> None:
         async def exercise() -> None:
             self.store.save(ME_ACCOUNT, "good")
             app = self._app()
@@ -118,8 +118,8 @@ class AppTest(unittest.TestCase):
             with patched_me(), patch("yafyaf_tui.api.client.YafyafClient.list_yafs", side_effect=list_with_headers):
                 async with app.run_test(size=(100, 34)) as pilot:
                     await settle(app, pilot)
-                    saying = app.query_one(Echo)
-                    score = app.query_one("#echo-score", Static)
+                    saying = app.query_one(Saying)
+                    score = app.query_one("#header-score", Static)
                     self.assertEqual(saying.content, "There is always time.")
                     self.assertEqual(score.content, "94")
                     # The saying under the list, the score in the header just left of the account
@@ -138,36 +138,36 @@ class AppTest(unittest.TestCase):
             with (
                 patched_me(),
                 patched_list(),
-                patch("yafyaf_tui.widgets.echo.ERASE_SECONDS", 0.001),
-                patch("yafyaf_tui.widgets.echo.TYPE_SECONDS", 0.001),
+                patch("yafyaf_tui.widgets.saying.ERASE_SECONDS", 0.001),
+                patch("yafyaf_tui.widgets.saying.TYPE_SECONDS", 0.001),
             ):
                 async with app.run_test(size=(100, 34)) as pilot:
                     await settle(app, pilot)
-                    echo = app.query_one(Echo)
+                    saying = app.query_one(Saying)
                     shown = []
-                    with patch.object(echo, "update", side_effect=lambda text: shown.append(text)):
+                    with patch.object(saying, "update", side_effect=lambda text: shown.append(text)):
                         app.client.saying = "So it goes."
-                        echo.sync()
+                        saying.sync()
                         await pilot.pause(0.3)
                         self.assertEqual(shown, ["S", "So", "So ", "So i", "So it", "So it ", "So it g", "So it go", "So it goe", "So it goes", "So it goes."])
 
                         # The old saying goes back to the common start, then the new one is typed out
                         shown.clear()
                         app.client.saying = "So be it."
-                        echo.sync()
+                        saying.sync()
                         await pilot.pause(0.3)
                         self.assertEqual(shown[:9], ["So it goes", "So it goe", "So it go", "So it g", "So it ", "So it", "So i", "So ", "So b"])
                         self.assertEqual(shown[-1], "So be it.")
 
                         # The same saying again is left alone
                         shown.clear()
-                        echo.sync()
+                        saying.sync()
                         await pilot.pause(0.1)
                         self.assertEqual(shown, [])
 
         asyncio.run(exercise())
 
-    def test_echo_polls_for_a_new_saying_a_while_after_the_last_response(self) -> None:
+    def test_the_saying_is_polled_a_while_after_the_last_response(self) -> None:
         async def exercise() -> None:
             self.store.save(ME_ACCOUNT, "good")
             app = self._app()
@@ -182,24 +182,24 @@ class AppTest(unittest.TestCase):
             with (
                 patch("yafyaf_tui.api.client.YafyafClient.me", side_effect=me_with_headers) as me,
                 patched_list(),
-                patch("yafyaf_tui.widgets.echo.random.uniform", return_value=0.2) as uniform,
+                patch("yafyaf_tui.widgets.saying.random.uniform", return_value=0.2) as uniform,
             ):
                 async with app.run_test(size=(100, 34)) as pilot:
                     await settle(app, pilot)
                     self.assertEqual(me.call_count, 1)
                     uniform.assert_called_with(10.0, 30.0)
-                    self.assertEqual(app.query_one(Echo).content, "Keep it simple.")
+                    self.assertEqual(app.query_one(Saying).content, "Keep it simple.")
 
                     # Each poll's response arms the next one
                     await pilot.pause(0.5)
                     await settle(app, pilot)
                     self.assertGreaterEqual(me.call_count, 3)
-                    self.assertEqual(app.query_one(Echo).content, "You know better.")
-                    self.assertEqual(app.query_one("#echo-score", Static).content, "95")
+                    self.assertEqual(app.query_one(Saying).content, "You know better.")
+                    self.assertEqual(app.query_one("#header-score", Static).content, "95")
 
                     # Signing out stops the polling
                     app.client.token = ""
-                    app.query_one(Echo).sync()
+                    app.query_one(Saying).sync()
                     polled = me.call_count
                     await pilot.pause(0.5)
                     await settle(app, pilot)

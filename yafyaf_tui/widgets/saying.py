@@ -15,7 +15,7 @@ ERASE_SECONDS = 0.005
 TYPE_SECONDS = 0.025
 
 
-class Echo(Static):
+class Saying(Static):
     """The server's saying, read off the last API response; the score goes to the header.
 
     Every response repaints both and arms a poll for a fresh one; a response from
@@ -23,7 +23,7 @@ class Echo(Static):
     """
 
     def __init__(self, client: YafyafClient, **kwargs) -> None:
-        super().__init__("", id="echo", **kwargs)
+        super().__init__("", id="saying", **kwargs)
         self._client = client
         self._poll: Timer | None = None
         self._shown = ""

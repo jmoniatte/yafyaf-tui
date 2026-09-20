@@ -164,7 +164,8 @@ class NewYafTest(unittest.TestCase):
 
     def test_as_email_finds_the_account_on_another_server_unless_the_server_was_given(self) -> None:
         self.store.save(Account("http://dev:4000", "dev@example.com"), "dev-token")
-        with patch("yafyaf_tui.api.client.YafyafClient.create_yaf") as create_yaf, contextlib.redirect_stderr(io.StringIO()):
+        quiet = contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO())
+        with patch("yafyaf_tui.api.client.YafyafClient.create_yaf") as create_yaf, quiet[0], quiet[1]:
             with patch.dict("os.environ", {"VISUAL": python_editor("import pathlib, sys; pathlib.Path(sys.argv[1]).write_text('Hi')")}):
                 self.assertEqual(new_yaf("http://localhost:3000", self.store, email="dev@example.com"), 0)
                 self.assertEqual(new_yaf("http://localhost:3000", self.store, email="dev@example.com", url_given=True), 1)

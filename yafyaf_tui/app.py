@@ -29,7 +29,7 @@ from .widgets import (
 
 STYLES_DIR = Path(__file__).parent / "styles"
 # One stylesheet per component, in cascade order: later files may rely on rules in earlier ones
-STYLE_FILES = ("base", "header", "main_area", "yaf_detail", "echo", "settings", "modal_forms", "dialogs", "login", "theme_picker")
+STYLE_FILES = ("base", "header", "main_area", "yaf_detail", "saying", "settings", "modal_forms", "dialogs", "login", "theme_picker")
 
 
 def load_stylesheet() -> str:

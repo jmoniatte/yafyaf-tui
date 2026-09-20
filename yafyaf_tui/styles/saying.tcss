@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   ECHO
+   SAYING
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* In flow under the list rather than docked, so it sits above the status line when that shows */
-#echo {
+#saying {
     height: 2;
     padding: 0 1;
     border-top: solid $gutter;
@@ -14,7 +14,7 @@
 }
 
 /* The score sits in the header, left of the account */
-#echo-score {
+#header-score {
     width: auto;
     margin-left: 2;
     color: $green;

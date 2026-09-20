@@ -18,7 +18,7 @@ from yafyaf_tui.api import (
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.config import Config
 from yafyaf_tui.screens import ConfirmDialog, NotSavedDialog
-from yafyaf_tui.widgets import Echo, YafDetail, YafsTable, YafsView
+from yafyaf_tui.widgets import Saying, YafDetail, YafsTable, YafsView
 from yafyaf_tui.widgets.yafs_table import DATE_WIDTH, summary_text
 
 from support import ME_ACCOUNT, ONE_PAGE, YAFS, header_message, patched_editor, patched_get, patched_list, patched_me, python_editor, row_text, settle
@@ -169,7 +169,7 @@ class YafsViewTest(unittest.TestCase):
                     self.assertFalse(view.display)
                     self.assertEqual(app.query_one("#yaf-detail-date", Static).content, "Sunday, September 13, 2026")
                     # The date takes the saying's place at the bottom
-                    self.assertFalse(app.query_one(Echo).display)
+                    self.assertFalse(app.query_one(Saying).display)
                     footer = app.query_one("#yaf-detail-footer")
                     self.assertGreater(footer.region.y, app.query_one("#yaf-detail-scroll").region.bottom - 1)
                     yaf_id = app.query_one("#yaf-detail-id", Static)
@@ -212,7 +212,7 @@ class YafsViewTest(unittest.TestCase):
                         await pilot.pause()
                         self.assertFalse(detail.display)
                         self.assertTrue(view.display)
-                        self.assertTrue(app.query_one(Echo).display)
+                        self.assertTrue(app.query_one(Saying).display)
                         self.assertTrue(app.query_one(YafsTable).has_focus)
                         self.assertFalse(app._exit)
                         await pilot.press("enter")

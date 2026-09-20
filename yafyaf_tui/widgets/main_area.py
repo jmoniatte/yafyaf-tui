@@ -4,7 +4,7 @@ from textual.app import ComposeResult
 from textual.containers import Vertical
 
 from ..api import Yaf, YafyafClient
-from .echo import Echo
+from .saying import Saying
 from .offline_notice import OfflineNotice
 from .yaf_detail import YafDetail
 from .yafs_table import ListColors, YafsTable
@@ -29,7 +29,7 @@ class MainArea(Vertical):
         yield YafsView(self._client, self._colors)
         yield YafDetail()
         yield OfflineNotice()
-        yield Echo(self._client)
+        yield Saying(self._client)
 
     def show_list(self) -> None:
         self._only(YafsView)
@@ -46,11 +46,11 @@ class MainArea(Vertical):
 
     def reset(self) -> None:
         """Drop what was loaded for the last account: the list, the search, the saying and the score."""
-        self.query_one(Echo).sync()
+        self.query_one(Saying).sync()
         self.query_one(YafsView).reset()
 
     def _only(self, pane: type) -> None:
         self.viewing = None
         for kind in PANES:
             self.query_one(kind).display = kind is pane
-        self.query_one(Echo).display = pane is not YafDetail
+        self.query_one(Saying).display = pane is not YafDetail

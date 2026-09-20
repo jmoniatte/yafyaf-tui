@@ -39,7 +39,7 @@ class AppHeader(Horizontal):
         yield HeaderNotification()
         yield Static("", id="header-spacer")
         yield Static("", id="app-url")
-        yield Static("", id="echo-score")
+        yield Static("", id="header-score")
         yield AccountLink("Settings", id="app-account", markup=False)
 
     def show_account(self, email: str, server: str = "") -> None:
@@ -50,4 +50,4 @@ class AppHeader(Horizontal):
         url.display = bool(server)
 
     def show_score(self, score: int | None) -> None:
-        self.query_one("#echo-score", Static).update(str(score) if score is not None else "")
+        self.query_one("#header-score", Static).update(str(score) if score is not None else "")

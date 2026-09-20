@@ -46,7 +46,7 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
     terminal_theme.py   # OSC queries that read the terminal's own palette before Textual starts
     widgets/            # Textual widgets (main_area.py: shows one of the three panes below, plus the saying;
                         # yafs_view.py: search box + list, paged from the API; yafs_table.py: its rows;
-                        # echo.py: saying + score from the x-yaf-* response headers, polled when idle;
+                        # saying.py: saying + score from the x-yaf-* response headers, polled when idle;
                         # offline_notice.py: replaces the list, and its keys, while the server is down;
                         # yaf_detail.py: one yaf as markdown in place of the list, Enter opens it, e edits)
     screens/            # Textual screens (settings, login, theme picker; dialog.py is the base of the
