@@ -335,8 +335,8 @@ SettingsScreen {
 
 SettingsScreen > Vertical {
     width: auto;
-    min-width: 64;
-    max-width: 70;
+    min-width: 84;
+    max-width: 90;
     height: auto;
     max-height: 80%;
     background: $bg-dark;
@@ -446,12 +446,12 @@ SettingsScreen .shortcuts-section {
 }
 
 SettingsScreen #shortcuts-actions {
-    width: 32;
+    width: 1fr;
     margin-right: 2;
 }
 
 SettingsScreen #shortcuts-general {
-    width: 32;
+    width: 1fr;
 }
 
 SettingsScreen .shortcut-row {
