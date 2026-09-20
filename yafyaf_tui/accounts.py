@@ -87,6 +87,17 @@ class TokenStore:
         """The first account with that email on any server."""
         return next((account for account in self.accounts() if account.email == email), None)
 
+    def starting_account(self, url: str, email: str = "", url_given: bool = False) -> Account | None:
+        """Which account a run starts on, given the server it was pointed at and the --as email, if any.
+
+        The email is looked for on that server, and on every server when the server was not
+        chosen explicitly, so `--as` alone finds the account wherever it is stored.
+        """
+        account = self.resolve(url, email)
+        if account is None and email and not url_given:
+            account = self.find(email)
+        return account
+
     # -- writing
 
     def save(self, account: Account, token: str) -> None:

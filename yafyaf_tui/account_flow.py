@@ -9,10 +9,10 @@ import asyncio
 from textual import work
 
 from .accounts import Account
-from .api import ApiConnectionError, ApiError, AuthenticationError, User
+from .api import ApiConnectionError, ApiError, AuthenticationError
 from .config import DEFAULT_URL, server_name
 from .screens import ConfirmDialog, Login, LoginScreen
-from .widgets import AppHeader, Echo, YafsView
+from .widgets import AppHeader, YafsView
 
 
 class AccountFlow:
@@ -34,7 +34,7 @@ class AccountFlow:
             self._go_offline(f"The server answered {error.status}: {error}")
             return
         self.token_store.select(self.account)
-        self._signed_in_as(self.user)
+        self._signed_in_as()
 
     def _ask_login(self, message: str = "", email: str = "", cancel_label: str = "Quit") -> None:
         screen = LoginScreen(self.servers, self.url, message, email=email, cancel_label=cancel_label)
@@ -51,9 +51,9 @@ class AccountFlow:
         self.token_store.save(account, session.token)
         self._start_account(account, session.token)
         self.user = session.user
-        self._signed_in_as(session.user)
+        self._signed_in_as()
 
-    def _signed_in_as(self, user: User) -> None:
+    def _signed_in_as(self) -> None:
         self.main.show_list()
         self._show_account()
         self.query_one(YafsView).load()
@@ -94,8 +94,7 @@ class AccountFlow:
         self.client.token = token
         self.user = None
         self.client.score = None
-        self.query_one(Echo).sync()
-        self.query_one(YafsView).reset()
+        self.main.reset()
         self._show_account()
 
     def _use_next_account(self, message: str) -> None:

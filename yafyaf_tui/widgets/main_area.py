@@ -43,6 +43,11 @@ class MainArea(Vertical):
         self._only(OfflineNotice)
         self.query_one(OfflineNotice).show(server, detail)
 
+    def reset(self) -> None:
+        """Drop what was loaded for the last account: the list, the search, the saying and the score."""
+        self.query_one(Echo).sync()
+        self.query_one(YafsView).reset()
+
     def _only(self, pane: type) -> None:
         self.viewing = None
         for kind in PANES:

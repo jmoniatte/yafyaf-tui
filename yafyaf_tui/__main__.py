@@ -38,12 +38,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     email = args.account or ""
 
     if args.command == "new":
-        raise SystemExit(new_yaf(url, store, account=email))
+        raise SystemExit(new_yaf(url, store, email=email, url_given=url_was_given(args.url)))
 
-    account = store.resolve(url, email)
-    if account is None and email and not url_was_given(args.url):
-        # --as alone names the account wherever it is stored
-        account = store.find(email)
+    account = store.starting_account(url, email, url_was_given(args.url))
 
     # Must run before Textual takes the tty; a silent terminal just yields None.
     terminal = query_terminal()

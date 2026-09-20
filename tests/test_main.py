@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from yafyaf_tui import __version__
 from yafyaf_tui.__main__ import main
-from yafyaf_tui.accounts import TokenStore
+from yafyaf_tui.accounts import Account, TokenStore
 from yafyaf_tui.api import (
     ApiConnectionError,
     AuthenticationError,
@@ -65,7 +65,7 @@ class MainTest(unittest.TestCase):
         self.assertEqual(raised.exception.code, 0)
         self.assertEqual(command.call_args.args[0], "http://localhost:3100")
         self.assertEqual(command.call_args.args[1].path.name, "tokens.yaml")
-        self.assertEqual(command.call_args.kwargs, {"account": "sayings@example.com"})
+        self.assertEqual(command.call_args.kwargs, {"email": "sayings@example.com", "url_given": True})
         app_class.assert_not_called()
 
 
@@ -161,3 +161,14 @@ class NewYafTest(unittest.TestCase):
         with patch.dict("os.environ", {"VISUAL": python_editor("raise SystemExit(3)")}), contextlib.redirect_stderr(err):
             self.assertEqual(new_yaf("http://localhost:3000", self.store), 1)
         self.assertIn("exited with status 3", err.getvalue())
+
+    def test_as_email_finds_the_account_on_another_server_unless_the_server_was_given(self) -> None:
+        self.store.save(Account("http://dev:4000", "dev@example.com"), "dev-token")
+        with patch("yafyaf_tui.api.client.YafyafClient.create_yaf") as create_yaf, contextlib.redirect_stderr(io.StringIO()):
+            with patch.dict("os.environ", {"VISUAL": python_editor("import pathlib, sys; pathlib.Path(sys.argv[1]).write_text('Hi')")}):
+                self.assertEqual(new_yaf("http://localhost:3000", self.store, email="dev@example.com"), 0)
+                self.assertEqual(new_yaf("http://localhost:3000", self.store, email="dev@example.com", url_given=True), 1)
+        create_yaf.assert_called_once()
+        self.assertEqual(self.store.starting_account("http://localhost:3000", "dev@example.com"), Account("http://dev:4000", "dev@example.com"))
+        self.assertIsNone(self.store.starting_account("http://localhost:3000", "dev@example.com", url_given=True))
+        self.assertEqual(self.store.starting_account("http://localhost:3000"), ME_ACCOUNT)
