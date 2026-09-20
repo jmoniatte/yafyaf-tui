@@ -26,9 +26,9 @@ class FrontMatterTest(unittest.TestCase):
 
     def test_parse_rejects_bad_front_matter(self) -> None:
         cases = {
-            "---\ndate: 2026-02-30\n---\nbody": "Front matter is not valid",
-            "---\ndate: yesterday\n---\nbody": "'yesterday' is not a date",
-            "---\ndate: 2026-09-14 10:00\n---\nbody": "is not a date",
+            "---\ndate: 2026-02-30\n---\nbody": "An invalid date was entered",
+            "---\ndate: yesterday\n---\nbody": "An invalid date was entered",
+            "---\ndate: 2026-09-14 10:00\n---\nbody": "An invalid date was entered",
             "---\ndate: 2026-09-14\ntags: [a]\n---\nbody": "Unknown front matter field: tags",
             "---\n- a list\n---\nbody": "must be fields",
             "---\ndate: [unclosed\n---\nbody": "Front matter is not valid",

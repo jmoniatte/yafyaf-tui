@@ -19,7 +19,7 @@ from .api import (
 )
 from .config import DEFAULT_URL, Account, Config, TokenStore, load_config, save_theme, server_name
 from .editor import Draft, DraftError, EditorError, Entry
-from .screens import ConfirmDialog, Login, LoginScreen, SettingsScreen, ThemePicker
+from .screens import EDIT_AGAIN, RETRY, ConfirmDialog, Login, LoginScreen, NotSavedDialog, SettingsScreen, ThemePicker
 from .shortcuts import GENERAL
 from .theme import effective_theme, load_palette
 from .widgets import (
@@ -368,6 +368,10 @@ class YafyafApp(App):
             draft = Draft.create("", date.today(), "new")
         else:
             draft = Draft.create(yaf.content, yaf.date, yaf.id)
+        self._edit_draft(yaf, draft)
+
+    def _edit_draft(self, yaf: Yaf | None, draft: Draft) -> None:
+        """Open the draft in the editor and save what comes back; a failed save offers the same draft again."""
         failure: Exception | None = None
         try:
             with self.suspend():
@@ -385,7 +389,7 @@ class YafyafApp(App):
         try:
             entry = draft.read()
         except DraftError as error:
-            self._not_saved(error, draft)
+            self._not_saved(yaf, draft, error)
             return
         blank = not entry.content.strip()
         # A new yaf left blank is a cancel, even if its date was changed
@@ -436,7 +440,7 @@ class YafyafApp(App):
             if yaf is None:
                 saved = await asyncio.to_thread(self.client.create_yaf, entry.content, entry.date)
         except (ApiError, ApiConnectionError) as error:
-            self._not_saved(error, draft)
+            self._not_saved(yaf, draft, error, entry=entry)
             return
         draft.discard()
         if yaf is None:
@@ -448,13 +452,19 @@ class YafyafApp(App):
             self._show_yaf(saved)
         self.notify(message)
 
-    def _not_saved(self, error: Exception, draft: Draft) -> None:
-        # Keep the file so a failed save does not throw away the edit
-        self.notify(
-            f"Not saved: {error}\nEdit kept in {draft.path}",
-            severity="error",
-            timeout=30,
-        )
+    def _not_saved(self, yaf: Yaf | None, draft: Draft, error: Exception, entry: Entry | None = None) -> None:
+        """Ask what to do with the edit; entry is what was parsed from the draft, when the server was the problem."""
+
+        def chosen(choice: str) -> None:
+            if choice == EDIT_AGAIN:
+                # Suspend from a plain callback, once the dialog is gone
+                self.call_later(self._edit_draft, yaf, draft)
+            elif choice == RETRY and entry is not None:
+                self._save_yaf(yaf, draft, entry)
+            else:
+                draft.discard()
+
+        self.push_screen(NotSavedDialog(str(error), retry=entry is not None), chosen)
 
     @on(SettingsRequested)
     def action_settings(self) -> None:

@@ -643,6 +643,24 @@ ConfirmDialog #confirm-btn:focus {
     text-style: bold;
 }
 
+ConfirmDialog #edit-btn,
+ConfirmDialog #retry-btn {
+    background: $blue 30%;
+    color: $blue;
+}
+
+ConfirmDialog #edit-btn:hover,
+ConfirmDialog #retry-btn:hover {
+    background: $blue 50%;
+}
+
+ConfirmDialog #edit-btn:focus,
+ConfirmDialog #retry-btn:focus {
+    background: $blue;
+    color: $bg-dark;
+    text-style: bold;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    LOGIN SCREEN
    ═══════════════════════════════════════════════════════════════════════ */

@@ -28,7 +28,7 @@ from yafyaf_tui.api import (
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.commands import new_yaf
 from yafyaf_tui.config import DEFAULT_URL, Account, Config, TokenStore
-from yafyaf_tui.screens import ConfirmDialog, LoginScreen, SettingsScreen
+from yafyaf_tui.screens import ConfirmDialog, LoginScreen, NotSavedDialog, SettingsScreen
 from yafyaf_tui.screens.settings_screen import ADD_ACCOUNT
 from yafyaf_tui.terminal_theme import TerminalReport
 from yafyaf_tui.theme import load_palette
@@ -223,7 +223,7 @@ class NewYafTest(unittest.TestCase):
         code, _, err, draft = self._run("---\ndate: soon\n---\nLost?")
         self.assertEqual(code, 1)
         self.create_yaf.assert_not_called()
-        self.assertIn(f"'soon' is not a date like 2026-09-14\nYour yaf is kept in {draft}", err)
+        self.assertIn(f"An invalid date was entered\nYour yaf is kept in {draft}", err)
         draft.unlink()
 
         code, _, err, draft = self._run("Lost?", side_effect=AuthenticationError(401, "rejected"))
@@ -1118,27 +1118,52 @@ class YafsViewTest(unittest.TestCase):
                     self.assertEqual(resumed, [True])
                     self.assertIn("exited with status 3", header_message(app))
 
+                    # A bad draft opens a dialog that has to be answered; Discard throws the edit away
                     editor, record = self._editor("text.replace('2026-09-13', '2026-02-30')")
                     with patched_editor(editor):
                         await pilot.press("e")
                         await settle(app, pilot)
                     update_yaf.assert_not_called()
                     draft = Path(record.read_text())
-                    self.assertIn(f"Edit kept in {draft}", header_message(app))
+                    self.assertIsInstance(app.screen, NotSavedDialog)
+                    self.assertEqual(app.screen.query_one("#dialog-message", Static).content, "An invalid date was entered")
+                    self.assertEqual(app.screen.query_one("#dialog-title", Static).content, "Error saving the Yaf")
+                    self.assertFalse(app.screen.query("#retry-btn"))  # Sending the same text again cannot help
+                    self.assertIs(app.screen.focused, app.screen.query_one("#edit-btn"))
+                    await pilot.press("escape")
+                    await settle(app, pilot)
+                    self.assertIsInstance(app.screen, NotSavedDialog)
                     self.assertTrue(draft.read_text().startswith("---\ndate: 2026-02-30\n---"))
-                    draft.unlink()
+                    await pilot.click("#confirm-btn")
+                    await settle(app, pilot)
+                    self.assertNotIsInstance(app.screen, NotSavedDialog)
+                    self.assertFalse(draft.exists())
 
-                    # Without front matter the yaf keeps its date
-                    editor, record = self._editor("'Replaced'")
+                    # Edit again reopens the same draft; a server error then offers a retry
                     with patched_editor(editor):
                         await pilot.press("e")
                         await settle(app, pilot)
-                    update_yaf.assert_called_once_with("y1", "Replaced", date(2026, 9, 13))
                     draft = Path(record.read_text())
+                    fixing, record = self._editor("text.replace('2026-02-30', '2026-09-12').replace('First', 'Fixed')")
+                    with patched_editor(fixing):
+                        await pilot.click("#edit-btn")
+                        await settle(app, pilot)
+                    self.assertEqual(Path(record.read_text()), draft)
+                    update_yaf.assert_called_once_with("y1", "Fixed yaf\nwith a second line", date(2026, 9, 12))
+                    self.assertIsInstance(app.screen, NotSavedDialog)
+                    self.assertEqual(app.screen.query_one("#dialog-message", Static).content, "content is too long")
                     self.assertTrue(draft.exists())
-                    self.assertIn(str(draft), header_message(app))
-                    draft.unlink()
-                    self.assertEqual(row_text(app.query_one(YafsTable), 0), ["2026-09-13", "First yaf"])
+
+                    saved = Yaf(id="y1", content="Fixed yaf\nwith a second line", date=date(2026, 9, 12))
+                    update_yaf.side_effect = None
+                    update_yaf.return_value = saved
+                    await pilot.click("#retry-btn")
+                    await settle(app, pilot)
+                    self.assertEqual(update_yaf.call_count, 2)
+                    self.assertNotIsInstance(app.screen, NotSavedDialog)
+                    self.assertFalse(draft.exists())
+                    self.assertEqual(header_message(app), "Yaf updated")
+                    self.assertEqual(row_text(app.query_one(YafsTable), 0), ["2026-09-12", "Fixed yaf"])
 
         asyncio.run(exercise())
 

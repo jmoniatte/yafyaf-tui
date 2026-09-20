@@ -22,6 +22,9 @@ class EditorError(Exception):
     """The editor could not be started or did not exit cleanly."""
 
 
+INVALID_DATE = "An invalid date was entered"
+
+
 class DraftError(Exception):
     """The saved file cannot be turned back into a yaf."""
 
@@ -58,7 +61,10 @@ def parse(text: str, default_date: date) -> Entry:
         return Entry(_normalized(text), default_date)
     try:
         fields = yaml.safe_load(match.group(1)) or {}
-    except (yaml.YAMLError, ValueError) as error:
+    except ValueError:
+        # YAML parses 2026-02-30 as a date and fails on the day; that is the only ValueError it raises
+        raise DraftError(INVALID_DATE) from None
+    except yaml.YAMLError as error:
         raise DraftError(f"Front matter is not valid: {error}") from None
     if not isinstance(fields, dict):
         raise DraftError("Front matter must be fields like 'date: 2026-09-14'")
@@ -75,7 +81,7 @@ def _parse_date(value: object) -> date:
     try:
         return date.fromisoformat(str(value))
     except ValueError:
-        raise DraftError(f"Front matter date '{value}' is not a date like 2026-09-14") from None
+        raise DraftError(INVALID_DATE) from None
 
 
 class Draft:

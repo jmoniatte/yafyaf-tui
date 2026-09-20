@@ -38,12 +38,18 @@ class ConfirmDialog(ModalScreen[bool]):
                 yield Button(self.cancel_label, id="cancel-btn")
                 yield Button(self.confirm_label, id="confirm-btn")
 
+    # Subclasses with other buttons change these two rather than the handlers, which Textual runs for every base class
+    INITIAL_FOCUS = "#cancel-btn"
+
+    def result_for(self, button_id: str | None) -> object:
+        return button_id == "confirm-btn"
+
     def on_mount(self) -> None:
-        self.query_one("#cancel-btn", Button).focus()
+        self.query_one(self.INITIAL_FOCUS, Button).focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         event.stop()
-        self.dismiss(event.button.id == "confirm-btn")
+        self.dismiss(self.result_for(event.button.id))
 
     def action_cancel(self) -> None:
-        self.dismiss(False)
+        self.dismiss(self.result_for("cancel-btn"))
