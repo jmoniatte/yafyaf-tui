@@ -34,9 +34,6 @@ class OfflineNotice(Vertical):
         self.display = True
         self.focus()
 
-    def hide(self) -> None:
-        self.display = False
-
     @on(Button.Pressed, "#btn-retry")
     def action_retry(self) -> None:
         self.post_message(RetryRequested())

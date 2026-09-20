@@ -96,6 +96,10 @@ HeaderNotification.-error {
    MAIN AREA
    ═══════════════════════════════════════════════════════════════════════ */
 
+#main-area {
+    height: 1fr;
+}
+
 #yafs-view {
     padding: 0 1;
     height: 1fr;

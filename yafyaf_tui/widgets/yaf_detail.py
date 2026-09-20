@@ -84,10 +84,6 @@ class YafDetail(Vertical):
         self.display = True
         scroll.focus()
 
-    def hide(self) -> None:
-        self.yaf = None
-        self.display = False
-
     def action_close(self) -> None:
         self.post_message(ViewClosed())
 

@@ -1,6 +1,7 @@
 from .app_header import AccountLink, AppHeader, SettingsRequested
 from .echo import Echo
 from .header_notification import HeaderNotification
+from .main_area import MainArea
 from .offline_notice import OfflineNotice, RetryRequested
 from .web_link import WebLink
 from .yaf_detail import ViewClosed, YafDetail
@@ -12,6 +13,7 @@ __all__ = [
     "Echo",
     "EditRequested",
     "HeaderNotification",
+    "MainArea",
     "NewYafRequested",
     "OfflineNotice",
     "RetryRequested",

@@ -33,7 +33,9 @@ There is no pytest. `ruff` is pinned in the `dev` dependency group, so use
 ```
 yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
   yafyaf_tui/           # Python package
-    app.py              # Main Textual app
+    app.py              # Main Textual app: state, layout, theme, notifications, message handlers
+    account_flow.py     # AccountFlow mixin: sign in, token checks, switching servers, sign out
+    edit_flow.py        # EditFlow mixin: fetch, edit in the editor, save, delete, the not-saved dialog
     commands.py         # Shell commands that skip the TUI (yaf new)
     config.py           # Server URL resolution, optional config.yaml (theme, servers)
     accounts.py         # Account (server + email) and TokenStore, the single tokens.yaml
@@ -42,7 +44,8 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
     shortcuts.py        # Help screen contents, read off the bindings
     theme.py            # base16 scheme loading, palette derivation
     terminal_theme.py   # OSC queries that read the terminal's own palette before Textual starts
-    widgets/            # Textual widgets (yafs_view.py: search box + list, paged from the API;
+    widgets/            # Textual widgets (main_area.py: shows one of the three panes below, plus the saying;
+                        # yafs_view.py: search box + list, paged from the API;
                         # echo.py: saying + score from the x-yaf-* response headers, polled when idle;
                         # offline_notice.py: replaces the list, and its keys, while the server is down;
                         # yaf_detail.py: one yaf as markdown in place of the list, Enter opens it, e edits)
@@ -94,7 +97,8 @@ Never hardcode a color in `base.tcss`.
 ## Viewing and editing
 
 Enter on a row shows the yaf rendered with Textual's Markdown widget, in place of the list
-(`YafDetail`, toggled like the offline notice). `e` or Shift+Enter opens the editor from the
+(`YafDetail`; `MainArea.show_yaf`, `show_list` and `show_offline` decide which pane is up and
+whether the saying shows). `e` or Shift+Enter opens the editor from the
 list or from the view, and the editor returns where it started: the view shows the saved
 content, or the new yaf when the old one was deleted elsewhere. A blanked yaf that is
 confirmed deleted drops back to the list. Escape and `q` leave the view; `q` only quits from the list. `y` copies the yaf to the clipboard through OSC 52, or in the view the text selected with the mouse. Both paths fetch the server's copy first through
