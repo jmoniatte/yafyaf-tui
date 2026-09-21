@@ -556,6 +556,15 @@ class YafsViewTest(unittest.TestCase):
                     await settle(app, pilot)
                     self.assertEqual((search.value, list_yafs.call_count), ("#servers", calls + 1))
 
+                    # The Refresh button under the list reloads it with the same search, keeping the list focused
+                    refresh = app.query_one("#btn-refresh")
+                    self.assertEqual(refresh.region.right, app.query_one("#list-footer").content_region.right)
+                    # The pilot cannot click the last rows of a bordered screen, so press the button directly
+                    refresh.press()
+                    await settle(app, pilot)
+                    self.assertEqual((list_yafs.call_args.args, list_yafs.call_count), (("#servers", 1), calls + 2))
+                    self.assertTrue(table.has_focus)
+
                     # From the view, a click on a tag goes back to the list filtered on it
                     view.load("")
                     await settle(app, pilot)
@@ -563,6 +572,7 @@ class YafsViewTest(unittest.TestCase):
                     await pilot.press("enter")
                     await settle(app, pilot)
                     self.assertTrue(app.query_one(YafDetail).display)
+                    self.assertFalse(refresh.display)
                     paragraph = app.query_one("MarkdownParagraph")
                     span = next(s for s in paragraph._content.spans if not isinstance(s.style, str) and "tag(" in s.style.meta.get("@click", ""))
                     self.assertEqual(paragraph._content.plain[span.start : span.end], "#servers")

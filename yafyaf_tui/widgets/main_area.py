@@ -1,7 +1,9 @@
 """The screen below the header: the yaf list, one yaf, or the offline notice, one at a time."""
 
+from textual import on
 from textual.app import ComposeResult
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
+from textual.widgets import Button
 
 from ..api import Yaf, YafyafClient
 from .saying import Saying
@@ -29,7 +31,12 @@ class MainArea(Vertical):
         yield YafsView(self._client, self._colors)
         yield YafDetail(self._colors)
         yield OfflineNotice()
-        yield Saying(self._client)
+        # The saying on the left, and a way to reload the list without a key on the right
+        with Horizontal(id="list-footer"):
+            yield Saying(self._client)
+            refresh = Button("Refresh", id="btn-refresh")
+            refresh.can_focus = False  # A click must not pull focus off the list
+            yield refresh
 
     def show_list(self) -> None:
         self._only(YafsView)
@@ -54,8 +61,15 @@ class MainArea(Vertical):
         self.query_one(Saying).sync()
         self.query_one(YafsView).reset()
 
+    @on(Button.Pressed, "#btn-refresh")
+    def _refresh(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.query_one(YafsView).load()
+
     def _only(self, pane: type) -> None:
         self.viewing = None
         for kind in PANES:
             self.query_one(kind).display = kind is pane
+        self.query_one("#list-footer").display = pane is not YafDetail
         self.query_one(Saying).display = pane is not YafDetail
+        self.query_one("#btn-refresh").display = pane is YafsView

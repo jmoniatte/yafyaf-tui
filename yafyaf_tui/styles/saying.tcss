@@ -2,15 +2,35 @@
    SAYING
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* In flow under the list rather than docked, so it sits above the status line when that shows */
-#saying {
+/* The footer under the list: the saying, and the Refresh button at its right edge */
+#list-footer {
     height: 2;
     padding: 0 1;
     border-top: solid $gutter;
+}
+
+#saying {
+    width: 1fr;
     color: $comment;
     text-style: italic;
     text-wrap: nowrap;
     text-overflow: ellipsis;
+}
+
+#btn-refresh {
+    width: auto;
+    min-width: 0;
+    height: 1;
+    border: none;
+    padding: 0 2;
+    margin-left: 2;
+    /* Flotte's start button colours */
+    background: $green 30%;
+    color: $green;
+}
+
+#btn-refresh:hover {
+    background: $green 50%;
 }
 
 /* The score sits in the header, left of the account */
