@@ -7,7 +7,7 @@ from datetime import date
 from http import HTTPStatus
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import unquote, urlencode
 from urllib.request import Request, urlopen
 
 from .. import __version__
@@ -184,7 +184,8 @@ class YafyafClient:
             raise ApiConnectionError(f"Cannot reach {self.base_url}: {reason}") from None
 
     def _note_response(self, headers: Mapping[str, str]) -> None:
-        self.saying = headers.get("x-yaf-says") or ""
+        # The server percent-encodes the saying, since header values are ASCII
+        self.saying = unquote(headers.get("x-yaf-says") or "")
         try:
             self.score = int(headers.get("x-yaf-score") or "")
         except ValueError:

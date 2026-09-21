@@ -4,7 +4,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from datetime import date
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, quote, urlsplit
 
 from yafyaf_tui import __version__
 from yafyaf_tui.api import ApiConnectionError, ApiError, AuthenticationError, NotFoundError, YafyafClient
@@ -26,6 +26,7 @@ class FakeYafyaf(BaseHTTPRequestHandler):
     """Just enough of the YafYaf API to exercise the client's request and error handling."""
 
     requests: list[dict] = []
+    saying = "There is always time."
 
     def _record(self) -> dict:
         length = int(self.headers.get("Content-Length") or 0)
@@ -44,8 +45,9 @@ class FakeYafyaf(BaseHTTPRequestHandler):
         payload = json.dumps(body).encode() if body is not None else b""
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
-        # Like the real API: a saying on every response, the score only when the token was accepted
-        self.send_header("x-yaf-says", "There is always time.")
+        # Like the real API: a saying on every response, percent-encoded since header values are ASCII,
+        # and the score only when the token was accepted
+        self.send_header("x-yaf-says", quote(FakeYafyaf.saying))
         if status != 401 and self._authorized(FakeYafyaf.requests[-1]):
             self.send_header("x-yaf-score", "94")
         self.end_headers()
@@ -161,12 +163,20 @@ class ClientTest(unittest.TestCase):
         client.me()
         self.assertEqual((client.saying, client.score), ("There is always time.", 94))
 
+        # Accents come through the percent-encoding
+        FakeYafyaf.saying = "On est prié de ne pas emmerder le Monde S.V.P."
+        try:
+            client.me()
+            self.assertEqual(client.saying, "On est prié de ne pas emmerder le Monde S.V.P.")
+        finally:
+            FakeYafyaf.saying = "There is always time."
+
         # The saying still arrives on a rejected token, the score does not
         client.token = "stale"
         with self.assertRaises(AuthenticationError):
             client.me()
         self.assertEqual((client.saying, client.score), ("There is always time.", None))
-        self.assertEqual(seen, [94, None])
+        self.assertEqual(seen, [94, 94, None])
 
     def test_rejected_or_missing_token_raises_authentication_error(self) -> None:
         with self.assertRaises(AuthenticationError) as raised:
