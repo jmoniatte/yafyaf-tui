@@ -13,7 +13,7 @@ class SettingsScreen(PanelScreen):
     """The theme and the signed-in account; the shortcuts are on the Help panel."""
 
     def compose(self) -> ComposeResult:
-        with Vertical():
+        with Vertical(id="settings-panel"):
             yield Static("Settings", id="dialog-title")
             yield Static("", id="title-separator")
 

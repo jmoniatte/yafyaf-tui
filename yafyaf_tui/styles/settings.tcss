@@ -19,6 +19,12 @@ PanelScreen > Vertical {
     margin-top: 4;
 }
 
+/* Settings holds two short rows; only Help needs the room for its two columns */
+#settings-panel {
+    width: 70;
+    min-width: 0;
+}
+
 PanelScreen Static {
     color: $fg;
 }
@@ -77,12 +83,17 @@ PanelScreen Select SelectOverlay > .option-list--option-highlighted {
     text-style: none;
 }
 
+/* Ends the theme dropdown where the account one ends, before Sign out and its margin */
+PanelScreen #theme-selector {
+    margin-right: 16;
+}
+
 PanelScreen #settings-email {
     width: 1fr;
 }
 
 PanelScreen #btn-sign-out {
-    width: auto;
+    width: 14;
     min-width: 0;
     height: 1;
     border: none;
