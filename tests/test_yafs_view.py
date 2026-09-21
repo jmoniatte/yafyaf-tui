@@ -168,13 +168,13 @@ class YafsViewTest(unittest.TestCase):
                     self.assertTrue(detail.display)
                     self.assertFalse(view.display)
                     self.assertEqual(app.query_one("#yaf-detail-date", Static).content, "Sunday, September 13, 2026")
-                    # The date takes the saying's place at the bottom
+                    # The full date and the id sit above the content, the saying stays hidden
                     self.assertFalse(app.query_one(Saying).display)
-                    footer = app.query_one("#yaf-detail-footer")
-                    self.assertGreater(footer.region.y, app.query_one("#yaf-detail-scroll").region.bottom - 1)
+                    header = app.query_one("#yaf-detail-header")
+                    self.assertLess(header.region.y, app.query_one("#yaf-detail-scroll").region.y)
                     yaf_id = app.query_one("#yaf-detail-id", Static)
                     self.assertEqual(yaf_id.content, "y1")
-                    self.assertEqual(yaf_id.region.right, footer.content_region.right)
+                    self.assertEqual(yaf_id.region.right, header.content_region.right)
                     self.assertEqual([(level, text) for level, text, _ in markdown.table_of_contents], [(1, "Title")])
                     self.assertEqual(len(markdown.query("MarkdownBulletList")), 1)
                     self.assertIs(app.focused, app.query_one("#yaf-detail-scroll"))

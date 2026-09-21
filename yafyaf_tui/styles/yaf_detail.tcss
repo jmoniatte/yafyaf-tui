@@ -20,10 +20,10 @@
 }
 
 /* The full date and the API id take the saying's place under the content */
-#yaf-detail-footer {
+/* No rule under it: the header already draws one, and the grey date reads as metadata on its own */
+#yaf-detail-header {
     height: 2;
     padding: 0 1;
-    border-top: solid $gutter;
     color: $comment;
 }
 

@@ -33,12 +33,12 @@ class YafDetail(Vertical):
         self.yaf: Yaf | None = None
 
     def compose(self) -> ComposeResult:
-        with VerticalScroll(id="yaf-detail-scroll"):
-            yield YafMarkdown(id="yaf-detail-markdown")
-        # Where the saying sits under the list
-        with Horizontal(id="yaf-detail-footer"):
+        # The full date and the yaf's API id at the right edge, then a blank line before the content
+        with Horizontal(id="yaf-detail-header"):
             yield Static("", id="yaf-detail-date")
             yield Static("", id="yaf-detail-id")
+        with VerticalScroll(id="yaf-detail-scroll"):
+            yield YafMarkdown(id="yaf-detail-markdown")
 
     def show(self, yaf: Yaf) -> None:
         self.yaf = yaf
