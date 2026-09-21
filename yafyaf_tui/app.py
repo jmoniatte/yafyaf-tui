@@ -10,13 +10,14 @@ from .accounts import Account, TokenStore
 from .api import User, YafyafClient
 from .config import DEFAULT_URL, Config, load_config, save_theme
 from .edit_flow import EditFlow
-from .screens import SettingsScreen, ThemePicker
+from .screens import HelpScreen, SettingsScreen, ThemePicker
 from .shortcuts import GENERAL
 from .theme import effective_theme, load_palette
 from .widgets import (
     AppHeader,
     EditRequested,
     HeaderNotification,
+    HelpRequested,
     ListColors,
     MainArea,
     NewYafRequested,
@@ -47,7 +48,8 @@ class YafyafApp(AccountFlow, EditFlow, App):
     TITLE = "YafYaf"
 
     BINDINGS = [
-        Binding("question_mark", "settings", "Settings", key_display="?", group=GENERAL),
+        Binding("question_mark", "help", "Help", key_display="?", group=GENERAL),
+        Binding("comma", "settings", "Settings", key_display=",", group=GENERAL),
         Binding("t", "show_themes", "Change theme", group=GENERAL),
         Binding("s", "next_account", "Switch account", group=GENERAL),
         Binding("q", "quit", "Quit", group=GENERAL),
@@ -169,6 +171,10 @@ class YafyafApp(AccountFlow, EditFlow, App):
     @on(SettingsRequested)
     def action_settings(self) -> None:
         self.push_screen(SettingsScreen())
+
+    @on(HelpRequested)
+    def action_help(self) -> None:
+        self.push_screen(HelpScreen())
 
     @on(RetryRequested)
     def _retry(self) -> None:

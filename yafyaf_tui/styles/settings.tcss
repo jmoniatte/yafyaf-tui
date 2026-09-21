@@ -1,13 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   SETTINGS SCREEN
+   PANELS (settings, help)
    ═══════════════════════════════════════════════════════════════════════ */
 
-SettingsScreen {
+PanelScreen {
     align: center top;
     background: $bg 80%;
 }
 
-SettingsScreen > Vertical {
+PanelScreen > Vertical {
     width: auto;
     min-width: 84;
     max-width: 90;
@@ -19,66 +19,69 @@ SettingsScreen > Vertical {
     margin-top: 4;
 }
 
-SettingsScreen Static {
+PanelScreen Static {
     color: $fg;
 }
 
-SettingsScreen #dialog-title {
+PanelScreen #dialog-title {
     text-style: bold;
     color: $blue;
     border-bottom: ascii $gutter;
 }
 
-SettingsScreen #title-separator {
+PanelScreen #title-separator {
     height: 1;
 }
 
-SettingsScreen .settings-row {
-    height: 1;
+/* A row is the value line and the underline below it; labels and the button sit on the value line */
+PanelScreen .settings-row {
+    height: 2;
     margin-bottom: 1;
-    align: left middle;
+    align: left top;
 }
 
-SettingsScreen .settings-label {
+PanelScreen .settings-label {
     width: 10;
     color: $comment;
 }
 
-SettingsScreen Select {
+/* Underlined like Flotte's form dropdowns, so it reads as something to open */
+PanelScreen Select {
     width: 1fr;
-    height: 1;
+    height: 2;
 }
 
-SettingsScreen Select SelectCurrent {
+PanelScreen Select SelectCurrent {
     background: transparent;
     border: none !important;
-    padding: 0;
+    border-bottom: solid $gutter !important;
+    padding: 0 1;
     color: $fg;
 }
 
-SettingsScreen Select SelectCurrent:hover,
-SettingsScreen Select:focus SelectCurrent {
-    color: $blue;
+PanelScreen Select SelectCurrent:hover,
+PanelScreen Select:focus SelectCurrent {
+    border-bottom: solid $blue !important;
 }
 
-SettingsScreen Select SelectOverlay {
+PanelScreen Select SelectOverlay {
     background: $bg;
     border: none;
     max-height: 12;
     scrollbar-size: 0 0;
 }
 
-SettingsScreen Select SelectOverlay > .option-list--option-highlighted {
+PanelScreen Select SelectOverlay > .option-list--option-highlighted {
     background: $bg-light;
     color: $fg;
     text-style: none;
 }
 
-SettingsScreen #settings-email {
+PanelScreen #settings-email {
     width: 1fr;
 }
 
-SettingsScreen #btn-sign-out {
+PanelScreen #btn-sign-out {
     width: auto;
     min-width: 0;
     height: 1;
@@ -89,84 +92,106 @@ SettingsScreen #btn-sign-out {
     color: $fg;
 }
 
-SettingsScreen #btn-sign-out:hover {
+PanelScreen #btn-sign-out:hover {
     background: $comment 50%;
 }
 
-SettingsScreen #btn-sign-out:focus {
+PanelScreen #btn-sign-out:focus {
     background: $blue;
     color: $bg-dark;
     text-style: bold;
 }
 
-SettingsScreen #settings-separator {
+PanelScreen #settings-separator {
     height: 1;
     color: $comment;
     margin-bottom: 1;
 }
 
-SettingsScreen .section-title {
+PanelScreen .section-title {
     text-style: bold;
     color: $fg;
     border-bottom: ascii $gutter;
 }
 
-SettingsScreen #shortcuts-sections {
+PanelScreen #shortcuts-sections {
     height: auto;
 }
 
-SettingsScreen .shortcuts-section {
+PanelScreen .shortcuts-section {
     height: auto;
 }
 
-SettingsScreen #shortcuts-actions {
+PanelScreen #shortcuts-actions {
     width: 1fr;
     margin-right: 2;
 }
 
-SettingsScreen #shortcuts-general {
+PanelScreen #shortcuts-general {
     width: 1fr;
 }
 
-SettingsScreen .shortcut-row {
+PanelScreen .shortcut-row {
     height: 1;
 }
 
-SettingsScreen .shortcut-key {
+PanelScreen .shortcut-key {
     width: 8;
     color: $green;
 }
 
-SettingsScreen .shortcut-desc {
+PanelScreen .shortcut-desc {
     color: $fg;
 }
 
-SettingsScreen #settings-footer-spacer {
+PanelScreen #panel-footer-spacer {
     height: 1;
 }
 
-SettingsScreen #settings-footer {
+PanelScreen #panel-footer {
     height: 1;
-    align: right middle;
+    align: left middle;
 }
 
-SettingsScreen #settings-footer .spacer {
+PanelScreen #panel-footer .spacer {
     width: 1fr;
 }
 
-SettingsScreen #settings-version {
+/* Neutral, like a dialog's cancel button: closing is neither an action nor a danger */
+PanelScreen #btn-close {
+    width: auto;
+    min-width: 0;
+    height: 1;
+    margin: 0;
+    border: none;
+    padding: 0 2;
+    background: $bg-light;
+    color: $fg;
+}
+
+PanelScreen #btn-close:hover {
+    background: $gutter;
+}
+
+PanelScreen #btn-close:focus {
+    background: $comment;
+    color: $bg-dark;
+    text-style: bold;
+}
+
+PanelScreen #panel-version {
     width: auto;
     margin-left: 1;
     color: $comment;
 }
 
-SettingsScreen #settings-repository {
+PanelScreen #panel-repository {
     width: auto;
     color: $blue;
     background: transparent;
 }
 
-SettingsScreen #settings-repository:hover {
+PanelScreen #panel-repository:hover {
     color: $blue;
     text-style: underline;
     background: transparent;

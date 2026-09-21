@@ -101,7 +101,7 @@ class SessionsTest(unittest.TestCase):
             with patched_me(), patched_list(), logout as revoke:
                 async with app.run_test(size=(100, 34)) as pilot:
                     await settle(app, pilot)
-                    await pilot.press("?")
+                    await pilot.press(",")
                     await pilot.pause()
                     self.assertEqual(app.screen.query_one("#account-selector", Select).value, ME_ACCOUNT)
 
@@ -118,7 +118,7 @@ class SessionsTest(unittest.TestCase):
                     self.assertEqual(self.store.token(self.store.current()), "good")
                     self.assertTrue(app.query_one(YafsTable).has_focus)
 
-                    await pilot.press("?")
+                    await pilot.press(",")
                     await pilot.pause()
                     await pilot.click("#btn-sign-out")
                     await settle(app, pilot)
@@ -145,7 +145,7 @@ class SessionsTest(unittest.TestCase):
                 async with app.run_test(size=(100, 34)) as pilot:
                     await settle(app, pilot)
                     self.assertIsNone(app.user)
-                    await pilot.press("?")
+                    await pilot.press(",")
                     await pilot.pause()
                     self.assertEqual(app.screen.query_one("#account-selector", Select).value, ME_ACCOUNT)
 
@@ -180,7 +180,7 @@ class SessionsTest(unittest.TestCase):
                         await pilot.press("n")
                         await pilot.pause()
                         edit.assert_not_called()
-                    await pilot.press("?")
+                    await pilot.press(",")
                     await pilot.pause()
                     self.assertIsInstance(app.screen, SettingsScreen)
                     await pilot.press("escape")
@@ -225,7 +225,7 @@ class SessionsTest(unittest.TestCase):
                     self.assertEqual(app.query_one("#app-account", Static).content, ME.email)
                     self.assertEqual(app.query_one("#header-score", Static).content, "94")
 
-                    await pilot.press("?")
+                    await pilot.press(",")
                     await pilot.pause()
                     selector = app.screen.query_one("#account-selector", Select)
                     self.assertEqual(selector.value, ME_ACCOUNT)
@@ -254,7 +254,7 @@ class SessionsTest(unittest.TestCase):
                     self.assertEqual(len(app.screen_stack), 1)
                     self.assertEqual((app.user, app.client.token), (SAYINGS, "sayings-token"))
 
-                    await pilot.press("?")
+                    await pilot.press(",")
                     await pilot.pause()
                     app.screen.query_one("#account-selector", Select).value = ADD_ACCOUNT
                     await settle(app, pilot)
@@ -337,7 +337,7 @@ class SessionsTest(unittest.TestCase):
                     self.assertEqual(header_message(app), f"Switched to {ME.email}")
                     self.assertEqual(list_yafs.call_count, 2)
 
-                    await pilot.press("?")
+                    await pilot.press(",")
                     await pilot.pause()
                     selector = app.screen.query_one("#account-selector", Select)
                     self.assertEqual(

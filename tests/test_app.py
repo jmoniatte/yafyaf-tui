@@ -10,7 +10,7 @@ from yafyaf_tui import shortcuts
 from yafyaf_tui.accounts import TokenStore
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.config import DEFAULT_URL, Config
-from yafyaf_tui.screens import SettingsScreen
+from yafyaf_tui.screens import HelpScreen, SettingsScreen
 from yafyaf_tui.widgets import AccountLink, Saying, HeaderNotification, YafDetail, YafsTable, YafsView
 
 from support import ME, ME_ACCOUNT, ONE_PAGE, header_message, patched_list, patched_me, settle
@@ -26,7 +26,7 @@ class AppTest(unittest.TestCase):
     def _app(self, url: str = "http://localhost:3000") -> YafyafApp:
         return YafyafApp(url, Config(), self.store)
 
-    def test_settings_screen_documents_every_binding(self) -> None:
+    def test_help_documents_every_binding_and_settings_opens_from_the_account(self) -> None:
         async def exercise() -> None:
             self.store.save(ME_ACCOUNT, "good")
             app = self._app()
@@ -35,7 +35,7 @@ class AppTest(unittest.TestCase):
                     await settle(app, pilot)
                     await pilot.press("?")
                     await pilot.pause()
-                    self.assertIsInstance(app.screen, SettingsScreen)
+                    self.assertIsInstance(app.screen, HelpScreen)
                     keys = {static.content for static in app.screen.query(".shortcut-key")}
                     expected = {
                         shortcut.key
@@ -45,12 +45,24 @@ class AppTest(unittest.TestCase):
                         )
                     }
                     self.assertEqual(keys, expected)
-                    self.assertTrue({"?", "q", "n", "e", "⇧+enter", "/", "r", "s", "y", "j", "k", "enter", "escape"} <= keys)
+                    self.assertTrue({"?", ",", "q", "n", "e", "⇧+enter", "/", "r", "s", "y", "j", "k", "enter", "escape"} <= keys)
                     await pilot.press("escape")
                     await pilot.pause()
-                    self.assertNotIsInstance(app.screen, SettingsScreen)
+                    self.assertNotIsInstance(app.screen, HelpScreen)
 
-                    # Clicking the account in the header is the other way in, and it must not take focus off the list
+                    # The logo opens Help too; the account opens Settings, and neither takes focus off the list
+                    await pilot.click("#app-title")
+                    await pilot.pause()
+                    self.assertIsInstance(app.screen, HelpScreen)
+                    self.assertFalse(app.screen.query(".settings-row"))
+                    await pilot.press("escape")
+                    await pilot.pause()
+                    await pilot.press(",")
+                    await pilot.pause()
+                    self.assertIsInstance(app.screen, SettingsScreen)
+                    self.assertFalse(app.screen.query(".shortcut-key"))
+                    await pilot.press("escape")
+                    await pilot.pause()
                     account = app.query_one("#app-account", AccountLink)
                     self.assertEqual(account.content, ME.email)
                     self.assertIs(account.parent, app.query_one("#app-header"))

@@ -1,4 +1,4 @@
-from .app_header import AccountLink, AppHeader, SettingsRequested
+from .app_header import AccountLink, AppHeader, HelpRequested, SettingsRequested
 from .saying import Saying
 from .header_notification import HeaderNotification
 from .main_area import MainArea
@@ -14,6 +14,7 @@ __all__ = [
     "Saying",
     "EditRequested",
     "HeaderNotification",
+    "HelpRequested",
     "ListColors",
     "MainArea",
     "NewYafRequested",

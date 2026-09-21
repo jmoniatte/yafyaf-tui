@@ -3,13 +3,23 @@ from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.widgets import Static
 
-from .. import REPOSITORY_URL, __version__
+from .. import __version__
 from .header_notification import HeaderNotification
-from .web_link import WebLink
 
 
 class SettingsRequested(Message):
     """The account link in the header was clicked."""
+
+
+class HelpRequested(Message):
+    """The logo in the header was clicked."""
+
+
+class TitleLink(Static):
+    """The app's name; clicking it opens Help, like ? does."""
+
+    def on_click(self) -> None:
+        self.post_message(HelpRequested())
 
 
 class AccountLink(Static):
@@ -33,7 +43,7 @@ class AppHeader(Horizontal):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="app-title-group"):
-            yield WebLink(REPOSITORY_URL, label="YafYaf", id="app-title")
+            yield TitleLink("YafYaf", id="app-title")
             yield Static(__version__, id="app-subtitle")
         yield Static("", classes="header-notification-spacer")
         yield HeaderNotification()

@@ -6,9 +6,9 @@ with Bearer token auth).
 ## Rules
 
 - Do not git commit unless asked
-- The settings screen lists every binding that has a description and a `group`
-  (`shortcuts.ACTIONS` or `shortcuts.GENERAL`); document a new key there, not in
-  `settings_screen.py`
+- The help screen (`?`, or clicking the logo) lists every binding that has a description and
+  a `group` (`shortcuts.ACTIONS` or `shortcuts.GENERAL`); document a new key there, not in
+  `help_screen.py`
 
 ## Run
 
@@ -49,7 +49,7 @@ yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
                         # saying.py: saying + score from the x-yaf-* response headers, polled when idle;
                         # offline_notice.py: replaces the list, and its keys, while the server is down;
                         # yaf_detail.py: one yaf as markdown in place of the list, Enter opens it, e edits)
-    screens/            # Textual screens (settings, login, theme picker; dialog.py is the base of the
+    screens/            # Textual screens (settings, help, login, theme picker; panel.py is their base; dialog.py is the base of the
                         # confirm and not-saved dialogs, each a list of DialogButton)
     styles/             # one .tcss per component, joined in app.STYLE_FILES order; themes/*.yaml (base16 schemes)
 ```
@@ -86,7 +86,7 @@ place the editorial rule lives: a scheme whose own `$fg` on `$bg` falls below
 `MIN_TEXT_CONTRAST` (WCAG AA) is skipped, since the stylesheets cannot rescue it.
 Do not hand-add a scheme the script would reject.
 
-Settings (`?` or clicking the email in the header) has a theme dropdown; the picker (`t`) previews as the cursor
+Settings (`,` or clicking the email in the header) has a theme dropdown; the picker (`t`) previews as the cursor
 moves. Both route through `YafyafApp.set_theme`, which persists the choice;
 `apply_theme` alone does not. The palette is served from `YafyafApp.get_css_variables`
 rather than baked into `CSS`. `refresh_css` only re-applies TCSS, so the yaf
