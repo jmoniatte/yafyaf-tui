@@ -5,9 +5,9 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
-from textual.widgets import Button, DataTable, Input, Static
+from textual.widgets import Button, DataTable, Input, Select, Static
 
-from ..api import ApiConnectionError, ApiError, Yaf, YafPage, YafyafClient
+from ..api import ApiConnectionError, ApiError, Tag, Yaf, YafPage, YafyafClient
 from ..shortcuts import ACTIONS
 from .dashed_rule import DashedRule
 from .yafs_table import DATE_WIDTH, ListColors, YafsTable
@@ -42,6 +42,7 @@ class YafsView(Vertical):
         # Only terminals with the kitty keyboard protocol can tell this from enter; e works everywhere
         Binding("shift+enter", "edit_yaf", "Edit yaf", key_display="⇧+enter", group=ACTIONS),
         Binding("slash", "search", "Search", key_display="/", group=ACTIONS),
+        Binding("number_sign", "tags", "Tags", key_display="#", group=ACTIONS),
         Binding("r", "refresh", "Refresh", group=ACTIONS),
         Binding("y", "copy_yaf", "Copy yaf", group=ACTIONS),
     ]
@@ -58,6 +59,8 @@ class YafsView(Vertical):
     def compose(self) -> ComposeResult:
         with Horizontal(id="yafs-controls"):
             yield Input(placeholder="Search yafs", id="search")
+            # Picking a tag types "#name" into the search; the dropdown itself never stays selected
+            yield Select([], prompt="Tags", id="tag-selector")
             yield Button("New Yaf", id="btn-new-yaf")
         # The table's own header cannot hold the count, so it is hidden and drawn here instead
         with Horizontal(id="yafs-header"):
@@ -102,6 +105,7 @@ class YafsView(Vertical):
         self.query_one(YafsTable).clear()
         self._set_status("Loading...")
         self._fetch(page=1)
+        self._load_tags()
 
     def reset(self) -> None:
         """Forget the search and the loaded yafs, e.g. when the user signs out."""
@@ -112,6 +116,7 @@ class YafsView(Vertical):
         self._next_page = None
         self.query_one("#search", Input).value = ""
         self.query_one(YafsTable).clear()
+        self._set_tags([])
         self._set_status("")
 
     @on(Button.Pressed, "#btn-new-yaf")
@@ -136,6 +141,39 @@ class YafsView(Vertical):
 
     def action_search(self) -> None:
         self.query_one("#search", Input).focus()
+
+    def action_tags(self) -> None:
+        selector = self.query_one("#tag-selector", Select)
+        selector.focus()
+        selector.action_show_overlay()
+
+    def add_tag(self, name: str) -> None:
+        """Add "#name" to the search and run it; how every way of picking a tag ends up."""
+        search = self.query_one("#search", Input)
+        token = f"#{name}"
+        if token not in search.value.split():
+            search.value = f"{search.value.rstrip()} {token}".strip()
+        self.query_one(YafsTable).focus()
+        self.load(search.value)
+
+    @on(Select.Changed, "#tag-selector")
+    def _tag_picked(self, event: Select.Changed) -> None:
+        event.stop()
+        if event.value is Select.NULL:
+            return
+        event.select.clear()
+        self.add_tag(str(event.value))
+
+    @work(exclusive=True, group="tags")
+    async def _load_tags(self) -> None:
+        try:
+            tags = await asyncio.to_thread(self._client.list_tags)
+        except (ApiError, ApiConnectionError):
+            return  # The list's own request reports the problem
+        self._set_tags(tags)
+
+    def _set_tags(self, tags: list[Tag]) -> None:
+        self.query_one("#tag-selector", Select).set_options((f"{tag.name} ({tag.count})", tag.name) for tag in tags)
 
     def action_refresh(self) -> None:
         self.load()

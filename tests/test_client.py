@@ -7,7 +7,7 @@ from datetime import date
 from urllib.parse import parse_qs, quote, urlsplit
 
 from yafyaf_tui import __version__
-from yafyaf_tui.api import ApiConnectionError, ApiError, AuthenticationError, NotFoundError, YafyafClient
+from yafyaf_tui.api import ApiConnectionError, ApiError, AuthenticationError, NotFoundError, Tag, YafyafClient
 
 USER = {"id": "abc", "email": "me@example.com", "locale": "en"}
 YAFS = [
@@ -17,6 +17,7 @@ YAFS = [
         "date": "2026-09-13",
         "created_at": "2026-09-13T10:00:00.000Z",
         "updated_at": "2026-09-13T11:00:00.000Z",
+        "tags": ["servers", "spam"],
     },
     {"id": "y2", "content": "Second yaf", "date": "2026-09-12", "created_at": None, "updated_at": None},
 ]
@@ -75,6 +76,8 @@ class FakeYafyaf(BaseHTTPRequestHandler):
             return self._reply(401, {"error": "Authentication is required and has failed"})
         if self.path == "/api/users/me":
             return self._reply(200, {"user": USER})
+        if self.path == "/api/tags":
+            return self._reply(200, {"tags": [{"name": "servers", "count": 2}, {"name": "users", "count": 1}]})
         parts = urlsplit(self.path)
         if parts.path == "/api/yafs":
             query = parse_qs(parts.query)
@@ -210,6 +213,11 @@ class ClientTest(unittest.TestCase):
             client.login("me@example.com", "secret")
         self.assertIn("Cannot reach http://127.0.0.1:1", str(raised.exception))
 
+    def test_tags_are_listed_with_their_counts(self) -> None:
+        client = YafyafClient(self.base_url, token="good-token")
+        self.assertEqual(client.list_tags(), [Tag("servers", 2), Tag("users", 1)])
+        self.assertEqual(FakeYafyaf.requests[-1]["path"], "/api/tags")
+
     def test_list_yafs_sends_search_params_and_parses_the_page(self) -> None:
         client = YafyafClient(self.base_url, token="good-token")
         page = client.list_yafs("hello world", page=1)
@@ -225,6 +233,7 @@ class ClientTest(unittest.TestCase):
         first, second = page.yafs
         self.assertEqual(first.date, date(2026, 9, 13))
         self.assertEqual((first.summary, second.summary), ("First yaf", "Second yaf"))
+        self.assertEqual((first.tags, second.tags), (("servers", "spam"), ()))
 
         last = client.list_yafs(page=2)
         self.assertNotIn("q=", FakeYafyaf.requests[1]["path"])

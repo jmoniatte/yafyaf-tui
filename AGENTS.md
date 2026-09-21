@@ -109,6 +109,18 @@ draft, Retry (server errors only) sends it again, Discard deletes it. There is n
 kitty keyboard protocol; `e` is the key that works everywhere. The markdown styles are
 mapped onto the palette in `yaf_detail.tcss` under `#yaf-detail-markdown`.
 
+## Tags
+
+A tag is a `#word` in a yaf's content; the server reads them out on save (`Yaf.tags`, `GET
+/api/tags` with counts) and a search with `#tag` tokens filters on them. The TUI only displays
+what the API gives it: `yafs_table.find_tags` mirrors the server's rule (a letter after the `#`,
+not glued to what precedes it, never inside code) to paint tags in the list rows and the yaf
+view in `ListColors.tag`, and a click on one posts `TagSelected`. The Tags dropdown next to the
+search box (`#` opens it) lists the account's tags with counts, refreshed on every list load;
+picking one types `#name` into the search box, runs the search and returns the dropdown to
+unselected, so it never holds state of its own. `YafsView.add_tag` is where every way of picking
+a tag ends up.
+
 ## Servers, config and accounts
 
 `yaf` starts on the server given by `--url` or `YAFYAF_URL` (flag wins), else on the server of

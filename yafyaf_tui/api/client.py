@@ -60,10 +60,17 @@ class Yaf:
     id: str
     content: str
     date: date
+    # The #words in the content, read out by the server
+    tags: tuple[str, ...] = ()
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> "Yaf":
-        return cls(id=str(data["id"]), content=data.get("content") or "", date=date.fromisoformat(data["date"]))
+        return cls(
+            id=str(data["id"]),
+            content=data.get("content") or "",
+            date=date.fromisoformat(data["date"]),
+            tags=tuple(data.get("tags") or ()),
+        )
 
     @property
     def summary(self) -> str:
@@ -72,6 +79,12 @@ class Yaf:
             if line.strip():
                 return line.strip()
         return ""
+
+
+@dataclass(frozen=True, slots=True)
+class Tag:
+    name: str
+    count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,6 +145,11 @@ class YafyafClient:
         if q:
             params["q"] = q
         return YafPage.from_json(self.request("GET", "/api/yafs", params=params))
+
+    def list_tags(self) -> list[Tag]:
+        """The user's tags with how many yafs carry each, by name; a search for "#name" filters on one."""
+        data = self.request("GET", "/api/tags")
+        return [Tag(name=str(tag["name"]), count=int(tag["count"])) for tag in data.get("tags") or ()]
 
     def get_yaf(self, yaf_id: str) -> Yaf:
         return Yaf.from_json(self.request("GET", f"/api/yafs/{yaf_id}")["yaf"])

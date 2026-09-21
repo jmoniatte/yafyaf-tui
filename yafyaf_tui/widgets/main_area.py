@@ -27,7 +27,7 @@ class MainArea(Vertical):
 
     def compose(self) -> ComposeResult:
         yield YafsView(self._client, self._colors)
-        yield YafDetail()
+        yield YafDetail(self._colors)
         yield OfflineNotice()
         yield Saying(self._client)
 
@@ -43,6 +43,11 @@ class MainArea(Vertical):
     def show_offline(self, server: str, detail: str) -> None:
         self._only(OfflineNotice)
         self.query_one(OfflineNotice).show(server, detail)
+
+    def set_colors(self, colors: ListColors) -> None:
+        self._colors = colors
+        self.query_one(YafsView).set_colors(colors)
+        self.query_one(YafDetail).set_colors(colors)
 
     def reset(self) -> None:
         """Drop what was loaded for the last account: the list, the search, the saying and the score."""

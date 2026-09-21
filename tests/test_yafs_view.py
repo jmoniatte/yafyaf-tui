@@ -5,10 +5,11 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
-from textual.widgets import Input, Markdown, Static
+from textual.widgets import Input, Markdown, Select, Static
 
 from yafyaf_tui.accounts import TokenStore
 from yafyaf_tui.api import (
+    Tag,
     ApiConnectionError,
     ApiError,
     NotFoundError,
@@ -17,11 +18,12 @@ from yafyaf_tui.api import (
 )
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.config import Config
+from yafyaf_tui.theme import load_palette
 from yafyaf_tui.screens import ConfirmDialog, NotSavedDialog
 from yafyaf_tui.widgets import Saying, YafDetail, YafsTable, YafsView
 from yafyaf_tui.widgets.yafs_table import DATE_WIDTH, summary_text
 
-from support import ME_ACCOUNT, ONE_PAGE, YAFS, header_message, patched_editor, patched_get, patched_list, patched_me, python_editor, row_text, settle
+from support import patched_tags, ME_ACCOUNT, ONE_PAGE, YAFS, header_message, patched_editor, patched_get, patched_list, patched_me, python_editor, row_text, settle
 
 class YafsViewTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -512,6 +514,66 @@ class YafsViewTest(unittest.TestCase):
 
         asyncio.run(exercise())
 
+    def test_tags_filter_the_list_from_the_dropdown_a_row_and_the_view(self) -> None:
+        async def exercise() -> None:
+            app = self._app()
+            tagged = Yaf(id="y3", content="Restart #servers now\n\nWith `#code` too", date=date(2026, 9, 1), tags=("servers",))
+            page = YafPage(yafs=(*YAFS, tagged), records_count=3)
+            with (
+                patched_me(),
+                patch("yafyaf_tui.api.client.YafyafClient.list_yafs", return_value=page) as list_yafs,
+                patched_tags(Tag("servers", 2), Tag("users", 1)),
+                patched_get(tagged),
+            ):
+                async with app.run_test(size=(100, 34)) as pilot:
+                    await settle(app, pilot)
+                    view = app.query_one(YafsView)
+                    selector = app.query_one("#tag-selector", Select)
+                    search = app.query_one("#search", Input)
+                    self.assertEqual([label for label, _ in selector._options if label], ["servers (2)", "users (1)"])
+                    self.assertIs(selector.value, Select.NULL)
+
+                    # # opens the dropdown; picking a tag types it into the search, runs it, and unselects
+                    await pilot.press("#")
+                    await pilot.pause()
+                    self.assertTrue(selector.expanded)
+                    self.assertIn(selector, app.focused.ancestors)  # the open overlay has the focus
+                    selector.value = "servers"
+                    await settle(app, pilot)
+                    self.assertEqual(search.value, "#servers")
+                    self.assertEqual(list_yafs.call_args.args, ("#servers", 1))
+                    self.assertIs(selector.value, Select.NULL)
+                    self.assertTrue(app.query_one(YafsTable).has_focus)
+                    calls = list_yafs.call_count
+
+                    # The tag in a row is painted in the tag color and a click on it filters too, without repeating it
+                    table = app.query_one(YafsTable)
+                    summary = table.get_row_at(2)[1]
+                    tag_span = next(span for span in summary.spans if span.style.meta.get("tag") == "servers")
+                    self.assertEqual(str(tag_span.style.color.name), load_palette("onedark")["purple"])
+                    tag_x = DATE_WIDTH + 3 * table.cell_padding + tag_span.start
+                    await pilot.click(table, offset=(tag_x, 2))
+                    await settle(app, pilot)
+                    self.assertEqual((search.value, list_yafs.call_count), ("#servers", calls + 1))
+
+                    # From the view, a click on a tag goes back to the list filtered on it
+                    view.load("")
+                    await settle(app, pilot)
+                    table.move_cursor(row=2)
+                    await pilot.press("enter")
+                    await settle(app, pilot)
+                    self.assertTrue(app.query_one(YafDetail).display)
+                    paragraph = app.query_one("MarkdownParagraph")
+                    span = next(s for s in paragraph._content.spans if not isinstance(s.style, str) and "tag(" in s.style.meta.get("@click", ""))
+                    self.assertEqual(paragraph._content.plain[span.start : span.end], "#servers")
+                    await pilot.click(paragraph, offset=(span.start + 1, 0))
+                    await settle(app, pilot)
+                    self.assertFalse(app.query_one(YafDetail).display)
+                    self.assertTrue(view.display)
+                    self.assertEqual((search.value, list_yafs.call_args.args), ("#servers", ("#servers", 1)))
+
+        asyncio.run(exercise())
+
     def test_links_are_blue_underlined_on_hover_and_open_on_click(self) -> None:
         text = summary_text("See [ESI](https://e.com/a?b=1&c=2) and https://x.tv/p, or (https://ooh.directory).", "#61afef")
         self.assertEqual(text.plain, "See ESI and https://x.tv/p, or (https://ooh.directory).")
@@ -536,6 +598,12 @@ class YafsViewTest(unittest.TestCase):
         self.assertEqual((heading.plain, heading.spans[0].style.link), ("See docs", "https://d.com"))
         for not_heading in ("#hashtag", "C# notes", "#"):
             self.assertEqual(summary_text(not_heading, heading_color="#e5c07b").plain, not_heading)
+
+        # Tags take the tag color and carry their name for a click; inline code and URL fragments are left alone
+        tagged = summary_text("Restart #Servers, see `#code` and https://x.com/p#anchor #ride-with-gps", tag_color="#c678dd")
+        tags = [(tagged.plain[s.start : s.end], s.style.meta.get("tag")) for s in tagged.spans if s.style.meta.get("tag")]
+        self.assertEqual(tags, [("#Servers", "servers"), ("#ride-with-gps", "ride-with-gps")])
+        self.assertTrue(all(s.style.color.name == "#c678dd" for s in tagged.spans if s.style.meta.get("tag")))
 
         async def exercise() -> None:
             app = self._app()

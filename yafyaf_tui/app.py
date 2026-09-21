@@ -22,6 +22,7 @@ from .widgets import (
     NewYafRequested,
     RetryRequested,
     SettingsRequested,
+    TagSelected,
     ViewClosed,
     YafOpened,
     YafsView,
@@ -85,7 +86,12 @@ class YafyafApp(AccountFlow, EditFlow, App):
         return self.query_one(MainArea)
 
     def _list_colors(self) -> ListColors:
-        return ListColors(date=self._palette["comment"], link=self._palette["blue"], heading=self._palette["yellow"])
+        return ListColors(
+            date=self._palette["comment"],
+            link=self._palette["blue"],
+            heading=self._palette["yellow"],
+            tag=self._palette["purple"],
+        )
 
     def get_css_variables(self) -> dict[str, str]:
         """Serve the base16 palette to the stylesheet alongside Textual's own."""
@@ -123,8 +129,8 @@ class YafyafApp(AccountFlow, EditFlow, App):
         """Swap the palette and repaint in place."""
         self._palette = load_palette(theme_name)
         self.refresh_css()
-        # refresh_css only re-applies TCSS; the list bakes its colors into Rich text
-        self.query_one(YafsView).set_colors(self._list_colors())
+        # refresh_css only re-applies TCSS; the list and the view bake some colors into Rich text
+        self.main.set_colors(self._list_colors())
 
     # -- notifications
 
@@ -172,6 +178,13 @@ class YafyafApp(AccountFlow, EditFlow, App):
     def _close_view(self) -> None:
         if self.main.viewing is not None:
             self.main.show_list()
+
+    @on(TagSelected)
+    def _tag_selected(self, event: TagSelected) -> None:
+        """A tag clicked anywhere filters the list; from the view that means going back to it."""
+        if self.main.viewing is not None:
+            self.main.show_list()
+        self.query_one(YafsView).add_tag(event.name)
 
     @on(YafOpened)
     def _open_yaf(self, event: YafOpened) -> None:

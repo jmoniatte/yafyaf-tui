@@ -81,7 +81,7 @@ class SettingsScreen(ModalScreen):
     @on(Select.Changed, "#theme-selector")
     def _theme_changed(self, event: Select.Changed) -> None:
         event.stop()
-        if event.value is not Select.BLANK:
+        if event.value is not Select.NULL:
             self.app.set_theme(event.value)
 
     @on(Select.Changed, "#account-selector")

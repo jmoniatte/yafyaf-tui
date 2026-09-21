@@ -7,6 +7,7 @@ from textual.widgets import Markdown, Static
 from ..api import Yaf
 from ..shortcuts import ACTIONS
 from .yaf_markdown import YafMarkdown
+from .yafs_table import ListColors
 from .yafs_view import EditRequested
 
 
@@ -28,9 +29,10 @@ class YafDetail(Vertical):
         Binding("k", "scroll_up", "Scroll up", show=False),
     ]
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, colors: ListColors | None = None, **kwargs) -> None:
         super().__init__(id="yaf-detail", **kwargs)
         self.yaf: Yaf | None = None
+        self._colors = colors or ListColors()
 
     def compose(self) -> ComposeResult:
         # The full date and the yaf's API id at the right edge, then a blank line before the content
@@ -38,7 +40,15 @@ class YafDetail(Vertical):
             yield Static("", id="yaf-detail-date")
             yield Static("", id="yaf-detail-id")
         with VerticalScroll(id="yaf-detail-scroll"):
-            yield YafMarkdown(id="yaf-detail-markdown")
+            yield YafMarkdown(tag_color=self._colors.tag, id="yaf-detail-markdown")
+
+    def set_colors(self, colors: ListColors) -> None:
+        """Repaint the tags against a new palette; the markdown bakes their color in."""
+        self._colors = colors
+        markdown = self.query_one(YafMarkdown)
+        markdown.tag_color = colors.tag
+        if self.yaf is not None:
+            markdown.update(self.yaf.content)
 
     def show(self, yaf: Yaf) -> None:
         self.yaf = yaf

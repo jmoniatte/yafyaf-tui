@@ -28,6 +28,37 @@
 }
 
 /* The search box is 3 rows with its border; the top margin lines the button up with its text */
+/* The tag dropdown is boxed like the search field next to it; its overlay opens below */
+#yafs-controls #tag-selector {
+    width: 20;
+    height: 3;
+    margin: 0 0 0 2;
+}
+
+#yafs-controls #tag-selector SelectCurrent {
+    background: $bg;
+    border: solid $gutter;
+    padding: 0 1;
+    color: $fg;
+}
+
+#yafs-controls #tag-selector:focus SelectCurrent {
+    border: solid $blue;
+}
+
+#yafs-controls #tag-selector SelectOverlay {
+    background: $bg-dark;
+    border: none;
+    max-height: 12;
+    scrollbar-size: 0 0;
+}
+
+#yafs-controls #tag-selector SelectOverlay > .option-list--option-highlighted {
+    background: $bg-light;
+    color: $fg;
+    text-style: none;
+}
+
 #yafs-controls Button {
     margin: 1 0 0 3;
     width: auto;

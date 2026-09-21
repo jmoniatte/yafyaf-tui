@@ -7,6 +7,7 @@ from rich.style import Style
 from rich.text import Text
 from textual import events
 from textual.binding import Binding
+from textual.message import Message
 from textual.widgets import DataTable
 
 from ..api import Yaf
@@ -16,6 +17,19 @@ DATE_WIDTH = 10
 HEADING = re.compile(r"#{1,6}\s+(.*?)(?:\s+#+)?\s*$")
 # A markdown link, or a bare URL; trailing punctuation and closing brackets are left out of a bare URL
 LINK = re.compile(r"\[(?P<label>[^\]]+)\]\((?P<target>[^)\s]+)\)|(?P<url>https?://[^\s<>()\[\]]*[^\s<>()\[\].,;:!?'\"])")
+# The server's rule for a tag: a #word starting with a letter, not glued to what precedes it
+TAG = re.compile(r"(?<![\w&/#-])#(?P<name>[a-z][a-z0-9_-]*)", re.IGNORECASE)
+INLINE_CODE = re.compile(r"`[^`\n]*`")
+
+
+def find_tags(text: str) -> list[tuple[int, int, str]]:
+    """(start, end, name) of every tag in text, skipping inline code, names lowercased."""
+    code = [(m.start(), m.end()) for m in INLINE_CODE.finditer(text)]
+    return [
+        (m.start(), m.end(), m.group("name").lower().rstrip("-"))
+        for m in TAG.finditer(text)
+        if not any(start <= m.start() < end for start, end in code)
+    ]
 
 
 def summary_text(
@@ -24,10 +38,12 @@ def summary_text(
     hovered_link: str | None = None,
     *,
     heading_color: str = "",
+    tag_color: str = "",
 ) -> Text:
     """Show links in the link color, markdown ones by their label, underlining the hovered one.
 
     A markdown heading ("# Title", "## Title") loses its # marks and takes the heading color.
+    Tags take the tag color and carry their name in the style's meta, so a click can filter on them.
     """
     heading = HEADING.match(summary)
     if heading:
@@ -43,6 +59,8 @@ def summary_text(
         )
         end = match.end()
     text.append(summary[end:])
+    for start, stop, name in find_tags(text.plain):
+        text.stylize(Style(color=tag_color or None, meta={"tag": name}), start, stop)
     return text
 
 
@@ -53,6 +71,15 @@ class ListColors:
     date: str = ""
     link: str = ""
     heading: str = ""
+    tag: str = ""
+
+
+class TagSelected(Message):
+    """The user picked a tag, in a row, in a yaf or from the dropdown, to filter the list on."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__()
+        self.name = name
 
 
 class YafsTable(DataTable):
@@ -95,7 +122,9 @@ class YafsTable(DataTable):
 
     def _summary_cell(self, yaf_id: str) -> Text:
         hovered = self._hovered[1] if self._hovered and self._hovered[0] == yaf_id else None
-        return summary_text(self._summaries[yaf_id], self._colors.link, hovered, heading_color=self._colors.heading)
+        return summary_text(
+            self._summaries[yaf_id], self._colors.link, hovered, heading_color=self._colors.heading, tag_color=self._colors.tag
+        )
 
     def _link_at(self, event: events.MouseEvent) -> tuple[str, str] | None:
         row = event.style.meta.get("row")
@@ -123,14 +152,17 @@ class YafsTable(DataTable):
 
     async def _on_click(self, event: events.Click) -> None:
         link = self._link_at(event)
+        tag = event.style.meta.get("tag")
         row = event.style.meta.get("row")
-        if link is None and not (isinstance(row, int) and 0 <= row < self.row_count):
+        if link is None and tag is None and not (isinstance(row, int) and 0 <= row < self.row_count):
             return
         # Handled here rather than by DataTable, which only opens a row on a second click in the same cell
         event.prevent_default()
         event.stop()
         if link is not None:
             self.app.open_url(link[1])
+        elif tag is not None:
+            self.post_message(TagSelected(tag))
         else:
             self.move_cursor(row=row)
             self.action_select_cursor()

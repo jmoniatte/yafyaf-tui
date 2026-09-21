@@ -12,6 +12,7 @@ from yafyaf_tui.api import (
     User,
     Yaf,
     YafPage,
+    Tag,
 )
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.accounts import Account
@@ -60,6 +61,10 @@ def patched_list(*pages: YafPage):
     if not pages:
         return patch("yafyaf_tui.api.client.YafyafClient.list_yafs", return_value=ONE_PAGE)
     return patch("yafyaf_tui.api.client.YafyafClient.list_yafs", side_effect=list(pages))
+
+
+def patched_tags(*tags: Tag):
+    return patch("yafyaf_tui.api.client.YafyafClient.list_tags", return_value=list(tags))
 
 
 def patched_get(*yafs: Yaf, error: Exception | None = None):
