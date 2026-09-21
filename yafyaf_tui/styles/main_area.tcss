@@ -30,7 +30,7 @@
 /* The search box is 3 rows with its border; the top margin lines the button up with its text */
 /* The tag dropdown is boxed like the search field next to it; its overlay opens below */
 #yafs-controls #tag-selector {
-    width: 20;
+    width: 30;
     height: 3;
     margin: 0 0 0 2;
 }
