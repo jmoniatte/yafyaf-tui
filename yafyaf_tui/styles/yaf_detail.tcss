@@ -64,8 +64,8 @@
 }
 
 #yaf-detail-markdown MarkdownBlock > .code_inline {
-    background: $bg-light;
-    color: $fg;
+    background: transparent;
+    color: $orange;
 }
 
 #yaf-detail-markdown MarkdownFence {

@@ -36,12 +36,6 @@ class _LinkedBlock:
                 spans.append(Span(start, end, style))
         return Content(content.plain, spans)
 
-    def get_visual_style(self, *component_classes: str, partial: bool = False):
-        # Textual's partial style drops an opaque background, so inline code would lose $bg-light
-        if component_classes == ("code_inline",):
-            partial = False
-        return super().get_visual_style(*component_classes, partial=partial)
-
     async def action_tag(self, name: str) -> None:
         self.post_message(TagSelected(name))
 

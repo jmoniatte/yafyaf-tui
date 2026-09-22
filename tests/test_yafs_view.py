@@ -180,9 +180,9 @@ class YafsViewTest(unittest.TestCase):
                     self.assertEqual([(level, text) for level, text, _ in markdown.table_of_contents], [(1, "Title")])
                     self.assertEqual(len(markdown.query("MarkdownBulletList")), 1)
                     self.assertIs(app.focused, app.query_one("#yaf-detail-scroll"))
-                    # Inline code keeps its background, which Textual drops when it is opaque
-                    code = markdown.query("MarkdownParagraph")[1].render_lines(markdown.region.reset_offset)[0]
-                    self.assertEqual(next(iter(code)).style.bgcolor.triplet.hex, app._palette["bg-light"])
+                    # Inline code is told apart by its color alone, on the page's background
+                    code = next(iter(markdown.query("MarkdownParagraph")[1].render_lines(markdown.region.reset_offset)[0]))
+                    self.assertEqual((code.style.color.triplet.hex, code.style.bgcolor.triplet.hex), (app._palette["orange"], app._palette["bg"]))
                     # A link is a terminal hyperlink as well as a click for the app, like in the list
                     paragraph = markdown.query_one("MarkdownParagraph")
                     link = next(span for span in paragraph._content.spans if not isinstance(span.style, str))
