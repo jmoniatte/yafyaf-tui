@@ -144,7 +144,7 @@ class YafsViewTest(unittest.TestCase):
     def test_enter_shows_the_yaf_as_markdown_and_the_editor_returns_there(self) -> None:
         async def exercise() -> None:
             app = self._app()
-            on_server = Yaf(id="y1", content="# Title\n\nSee [docs](https://d.com)\n\n- one\n- two", date=date(2026, 9, 13))
+            on_server = Yaf(id="y1", content="# Title\n\nSee [docs](https://d.com)\n\n- `one`\n- two", date=date(2026, 9, 13))
             saved = Yaf(id="y1", content="# Changed\n\nBody", date=date(2026, 9, 13))
             editor, record = self._editor("text.replace('Title', 'Changed')")
             blanked, _ = self._editor("'---\\ndate: 2026-09-13\\n---\\n'")
@@ -180,6 +180,9 @@ class YafsViewTest(unittest.TestCase):
                     self.assertEqual([(level, text) for level, text, _ in markdown.table_of_contents], [(1, "Title")])
                     self.assertEqual(len(markdown.query("MarkdownBulletList")), 1)
                     self.assertIs(app.focused, app.query_one("#yaf-detail-scroll"))
+                    # Inline code keeps its background, which Textual drops when it is opaque
+                    code = markdown.query("MarkdownParagraph")[1].render_lines(markdown.region.reset_offset)[0]
+                    self.assertEqual(next(iter(code)).style.bgcolor.triplet.hex, app._palette["bg-light"])
                     # A link is a terminal hyperlink as well as a click for the app, like in the list
                     paragraph = markdown.query_one("MarkdownParagraph")
                     link = next(span for span in paragraph._content.spans if not isinstance(span.style, str))
