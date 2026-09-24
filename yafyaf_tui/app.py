@@ -34,7 +34,7 @@ STYLES_DIR = Path(__file__).parent / "styles"
 # One stylesheet per component, in cascade order: later files may rely on rules in earlier ones
 STYLE_FILES = (
     *ouikit.STYLE_FILES,
-    *(STYLES_DIR / f"{name}.tcss" for name in ("base", "header", "main_area", "yaf_detail", "saying", "settings", "login")),
+    *(STYLES_DIR / f"{name}.tcss" for name in ("header", "main_area", "yaf_detail", "saying", "settings", "login")),
 )
 
 
