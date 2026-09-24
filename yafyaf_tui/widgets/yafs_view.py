@@ -44,7 +44,7 @@ class YafsView(Vertical):
         Binding("slash", "search", "Search", key_display="/", group=ACTIONS),
         Binding("number_sign", "tags", "Tags", key_display="#", group=ACTIONS),
         Binding("r", "refresh", "Refresh", group=ACTIONS),
-        Binding("y", "copy_yaf", "Copy yaf", group=ACTIONS),
+        Binding("y", "copy_yaf", "Copy the selection, or the yaf", group=ACTIONS),
     ]
 
     def __init__(self, client: YafyafClient, colors: ListColors | None = None, **kwargs) -> None:
@@ -135,7 +135,11 @@ class YafsView(Vertical):
             self.post_message(EditRequested(yaf))
 
     def action_copy_yaf(self) -> None:
-        if (yaf := self.selected_yaf()) is not None:
+        """Copy the text selected with the mouse, or the yaf under the cursor when nothing is selected."""
+        if selection := self.screen.get_selected_text():
+            self.app.copy_to_clipboard(selection)
+            self.notify("Selection copied")
+        elif (yaf := self.selected_yaf()) is not None:
             self.app.copy_to_clipboard(yaf.content)
             self.notify("Yaf copied")
 

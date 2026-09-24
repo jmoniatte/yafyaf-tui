@@ -79,7 +79,7 @@ Enter on a row shows the yaf rendered with Textual's Markdown widget, in place o
 whether the saying shows). `e` or Shift+Enter opens the editor from the
 list or from the view, and the editor returns where it started: the view shows the saved
 content, or the new yaf when the old one was deleted elsewhere. A blanked yaf that is
-confirmed deleted drops back to the list. Escape and `q` leave the view; `q` only quits from the list. `y` copies the yaf to the clipboard through OSC 52, or in the view the text selected with the mouse. Both paths fetch the server's copy first through
+confirmed deleted drops back to the list. Escape and `q` leave the view; `q` only quits from the list. `y` copies the text selected with the mouse, in the list or the view, or with nothing selected the yaf, to the clipboard through OSC 52; on other screens ouikit's `y` copies the selection. Both paths fetch the server's copy first through
 `YafyafApp._fetch_current`. A save that fails, whether the draft's front matter is bad or the
 server refused it, opens `NotSavedDialog` over the kept draft: Edit again reopens that same
 draft, Retry (server errors only) sends it again, Discard deletes it. There is no Escape. Shift+Enter only reaches the app in terminals that speak the

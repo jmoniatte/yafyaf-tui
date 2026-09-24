@@ -59,6 +59,8 @@ class YafyafApp(AccountFlow, EditFlow, BaseApp):
         HELP_BINDING,
         Binding("comma", "settings", "Settings", key_display=",", group=GENERAL),
         THEME_BINDING,
+        # y everywhere else; the list and the yaf view bind it themselves, and Help shows theirs
+        Binding("y", "copy_selection", show=False),
         Binding("s", "next_account", "Switch account", group=GENERAL),
         Binding("q", "quit", "Quit", group=GENERAL),
     ]
