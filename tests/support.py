@@ -10,6 +10,7 @@ from datetime import date
 from ouikit.header_notification import HeaderNotification
 
 from yafyaf_tui.api import (
+    ApiConnectionError,
     User,
     Yaf,
     YafPage,
@@ -52,6 +53,16 @@ def patched_editor(editor: str):
 def python_editor(code: str) -> str:
     """An editor command that runs Python on the draft, whose path is sys.argv[1]."""
     return shlex.join([sys.executable, "-c", code])
+
+
+def no_server():
+    """Fail every request a test did not patch, as if no server were running.
+
+    Otherwise a server running at URL (a local Rails, say) answers them, and its replies, which
+    carry no saying or score, overwrite what the test set up.
+    """
+    error = ApiConnectionError(f"Cannot reach {URL}: the tests reach no server")
+    return patch("yafyaf_tui.api.client.YafyafClient.request", side_effect=error)
 
 
 def patched_me():

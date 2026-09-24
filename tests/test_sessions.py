@@ -22,10 +22,11 @@ from yafyaf_tui.screens import LoginScreen, SettingsScreen
 from yafyaf_tui.screens.settings_screen import ADD_ACCOUNT
 from yafyaf_tui.widgets import OfflineNotice, YafsTable, YafsView
 
-from support import ME, ME_ACCOUNT, OTHER, OTHER_ACCOUNT, SAYINGS, SAYINGS_ACCOUNT, URL, header_message, patched_list, patched_me, row_text, settle
+from support import ME, ME_ACCOUNT, OTHER, OTHER_ACCOUNT, SAYINGS, SAYINGS_ACCOUNT, URL, header_message, no_server, patched_list, patched_me, row_text, settle
 
 class SessionsTest(unittest.TestCase):
     def setUp(self) -> None:
+        self.enterContext(no_server())
         self.tmp = tempfile.TemporaryDirectory()
         self.store = TokenStore(Path(self.tmp.name) / "tokens.yaml")
 

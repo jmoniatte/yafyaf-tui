@@ -11,7 +11,7 @@ from yafyaf_tui.app import YafyafApp, load_stylesheet
 from yafyaf_tui.config import Config
 from yafyaf_tui.widgets import YafsTable
 
-from support import ME_ACCOUNT, patched_list, patched_me
+from support import ME_ACCOUNT, no_server, patched_list, patched_me
 
 
 class ThemeTest(unittest.TestCase):
@@ -33,7 +33,7 @@ class ThemeTest(unittest.TestCase):
 
         async def main():
             nonlocal colors
-            with patched_me(), patched_list():
+            with no_server(), patched_me(), patched_list():
                 async with app.run_test() as pilot:
                     app.apply_theme("dracula")
                     await pilot.pause()

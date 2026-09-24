@@ -15,10 +15,11 @@ from yafyaf_tui.config import DEFAULT_URL, Config
 from yafyaf_tui.screens import SettingsScreen
 from yafyaf_tui.widgets import AccountLink, Saying, YafDetail, YafsTable, YafsView
 
-from support import ME, ME_ACCOUNT, ONE_PAGE, header_message, patched_list, patched_me, settle
+from support import ME, ME_ACCOUNT, ONE_PAGE, header_message, no_server, patched_list, patched_me, settle
 
 class AppTest(unittest.TestCase):
     def setUp(self) -> None:
+        self.enterContext(no_server())
         self.tmp = tempfile.TemporaryDirectory()
         self.store = TokenStore(Path(self.tmp.name) / "tokens.yaml")
 

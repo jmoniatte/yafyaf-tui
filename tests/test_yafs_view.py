@@ -26,10 +26,11 @@ from yafyaf_tui.screens import NotSavedDialog
 from yafyaf_tui.widgets import Saying, YafDetail, YafsTable, YafsView
 from yafyaf_tui.widgets.yafs_table import DATE_WIDTH, summary_text
 
-from support import patched_tags, ME_ACCOUNT, ONE_PAGE, YAFS, header_message, patched_editor, patched_get, patched_list, patched_me, python_editor, row_text, settle
+from support import patched_tags, ME_ACCOUNT, ONE_PAGE, YAFS, header_message, no_server, patched_editor, patched_get, patched_list, patched_me, python_editor, row_text, settle
 
 class YafsViewTest(unittest.TestCase):
     def setUp(self) -> None:
+        self.enterContext(no_server())
         self.tmp = tempfile.TemporaryDirectory()
         self.store = TokenStore(Path(self.tmp.name) / "tokens.yaml")
         self.store.save(ME_ACCOUNT, "good")

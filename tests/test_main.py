@@ -18,7 +18,7 @@ from yafyaf_tui.api import (
 from yafyaf_tui.commands import new_yaf
 from yafyaf_tui.config import DEFAULT_URL, Config
 
-from support import ME_ACCOUNT, python_editor
+from support import ME_ACCOUNT, no_server, python_editor
 
 class MainTest(unittest.TestCase):
     def test_version_flag_exits_without_starting_the_tui(self) -> None:
@@ -69,6 +69,7 @@ class MainTest(unittest.TestCase):
 
 class NewYafTest(unittest.TestCase):
     def setUp(self) -> None:
+        self.enterContext(no_server())
         self.tmp = tempfile.TemporaryDirectory()
         self.store = TokenStore(Path(self.tmp.name) / "tokens.yaml")
         self.store.save(ME_ACCOUNT, "good")

@@ -33,7 +33,10 @@ uv run ruff check .
 
 There is no pytest. `uv sync` installs ouikit from `../ouikit` (`[tool.uv.sources]`), so a
 change there shows up here without reinstalling. `ruff` is pinned in the `dev` dependency group, so use
-`uv run ruff`, not whatever `ruff` is on PATH.
+`uv run ruff`, not whatever `ruff` is on PATH. The app tests never reach a server: `support.no_server()`
+fails every request a test did not patch, as if nothing were running. Use it in any new test
+class that starts the app; without it a local Rails on port 3000 answers those requests and
+blanks the saying and score the test set up.
 
 ## Structure
 
