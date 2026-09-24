@@ -12,8 +12,10 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-# Not published: the folder next to this one, so its changes show up here at once
-ouikit = { path = "../ouikit", editable = true }
+# Not published: installed from GitHub's master; `uv lock --upgrade-package ouikit` picks up new commits.
+# To work on ouikit and this app together, use the folder next to this one instead:
+# ouikit = { path = "../ouikit", editable = true }
+ouikit = { git = "ssh://git@github.com/jmoniatte/ouikit.git", branch = "master" }
 
 [project.scripts]
 yaf = "yafyaf_tui.__main__:main"

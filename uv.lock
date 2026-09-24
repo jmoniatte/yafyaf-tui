@@ -52,22 +52,12 @@ wheels = [
 [[package]]
 name = "ouikit"
 version = "0.1.0"
-source = { editable = "../ouikit" }
+source = { git = "ssh://git@github.com/jmoniatte/ouikit.git?branch=master#076db8e9851f80442f9773c73929e1a2fdb5bfec" }
 dependencies = [
     { name = "pyyaml" },
     { name = "rich" },
     { name = "textual" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "rich", specifier = ">=14.2.0" },
-    { name = "textual", specifier = ">=7.2.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "ruff", specifier = ">=0.15.7,<0.16" }]
 
 [[package]]
 name = "platformdirs"
@@ -223,7 +213,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ouikit", editable = "../ouikit" },
+    { name = "ouikit", git = "ssh://git@github.com/jmoniatte/ouikit.git?branch=master" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", specifier = ">=14.2.0" },
     { name = "textual", specifier = ">=7.2.0" },
