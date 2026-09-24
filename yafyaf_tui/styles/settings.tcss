@@ -1,13 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   PANELS (settings, help) - where yafyaf's differ from ouikit's
+   SETTINGS PANEL
    ═══════════════════════════════════════════════════════════════════════ */
-
-/* Wider than ouikit's, with the two Help columns sharing the width */
-PanelScreen > Vertical {
-    min-width: 84;
-    max-width: 90;
-    max-height: 80%;
-}
 
 /* Settings holds one short row; only Help needs the room for its two columns */
 #settings-panel {
@@ -17,25 +10,6 @@ PanelScreen > Vertical {
 
 PanelScreen #title-separator {
     height: 1;
-}
-
-/* A blank line under the title, like Settings */
-HelpScreen #dialog-title {
-    margin-bottom: 1;
-}
-
-PanelScreen #shortcuts-actions {
-    width: 1fr;
-    margin-right: 2;
-}
-
-PanelScreen #shortcuts-general {
-    width: 1fr;
-}
-
-PanelScreen .shortcut-row,
-PanelScreen .shortcut-desc {
-    width: 1fr;
 }
 
 /* A row is the value line and the underline below it; labels and the button sit on the value line */

@@ -52,7 +52,7 @@ wheels = [
 [[package]]
 name = "ouikit"
 version = "0.1.0"
-source = { git = "ssh://git@github.com/jmoniatte/ouikit.git?branch=master#076db8e9851f80442f9773c73929e1a2fdb5bfec" }
+source = { git = "ssh://git@github.com/jmoniatte/ouikit.git?branch=master#6e782742d6661f1172ce177ebfd600f6abe3d9c8" }
 dependencies = [
     { name = "pyyaml" },
     { name = "rich" },
