@@ -1,23 +1,21 @@
 from pathlib import Path
 
+import ouikit
+from ouikit.base_app import HELP_BINDING, THEME_BINDING, BaseApp
+from ouikit.shortcuts import GENERAL
 from textual import on
-from textual.app import App, ComposeResult
+from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.notifications import Notification, SeverityLevel
 
+from . import REPOSITORY_URL, __version__
 from .account_flow import AccountFlow
 from .accounts import Account, TokenStore
 from .api import User, YafyafClient
-from .config import DEFAULT_URL, Config, load_config, save_theme
+from .config import CONFIG_FILE, DEFAULT_URL, Config, load_config
 from .edit_flow import EditFlow
-from .screens import HelpScreen, SettingsScreen, ThemePicker
-from .shortcuts import GENERAL
-from .theme import effective_theme, load_palette
+from .screens import SettingsScreen
 from .widgets import (
-    AppHeader,
     EditRequested,
-    HeaderNotification,
-    HelpRequested,
     ListColors,
     MainArea,
     NewYafRequested,
@@ -25,32 +23,42 @@ from .widgets import (
     SettingsRequested,
     TagSelected,
     ViewClosed,
+    YafDetail,
+    YafHeader,
     YafOpened,
+    YafsTable,
     YafsView,
 )
 
 STYLES_DIR = Path(__file__).parent / "styles"
 # One stylesheet per component, in cascade order: later files may rely on rules in earlier ones
-STYLE_FILES = ("base", "header", "main_area", "yaf_detail", "saying", "settings", "modal_forms", "dialogs", "login", "theme_picker")
+STYLE_FILES = (
+    *ouikit.STYLE_FILES,
+    *(STYLES_DIR / f"{name}.tcss" for name in ("base", "header", "main_area", "yaf_detail", "saying", "settings", "login")),
+)
 
 
 def load_stylesheet() -> str:
-    return "\n".join((STYLES_DIR / f"{name}.tcss").read_text() for name in STYLE_FILES)
+    return "\n".join(path.read_text() for path in STYLE_FILES)
 
 
-class YafyafApp(AccountFlow, EditFlow, App):
+class YafyafApp(AccountFlow, EditFlow, BaseApp):
     """Terminal client for the YafYaf notes API.
 
     The account and editing flows live in their mixins; this class holds the state they share,
-    the layout, the theme, the notifications and the message handlers that hand off to them.
+    the layout and the message handlers that hand off to them; BaseApp brings the theme, the
+    header messages and Help.
     """
 
     TITLE = "YafYaf"
+    VERSION = __version__
+    REPOSITORY_URL = REPOSITORY_URL
+    HELP_BINDINGS = (YafsView.BINDINGS, YafsTable.BINDINGS, YafDetail.BINDINGS)
 
     BINDINGS = [
-        Binding("question_mark", "help", "Help", key_display="?", group=GENERAL),
+        HELP_BINDING,
         Binding("comma", "settings", "Settings", key_display=",", group=GENERAL),
-        Binding("t", "show_themes", "Change theme", group=GENERAL),
+        THEME_BINDING,
         Binding("s", "next_account", "Switch account", group=GENERAL),
         Binding("q", "quit", "Quit", group=GENERAL),
     ]
@@ -73,14 +81,11 @@ class YafyafApp(AccountFlow, EditFlow, App):
         self._login_email = login_email
         self.client = YafyafClient(self.url, self.token_store.token(self.account))
         self.user: User | None = None
-        # The palette is served from get_css_variables rather than baked into
-        # CSS, so apply_theme can swap it without restarting.
-        self._palette = load_palette(self.config.theme)
         self.CSS = load_stylesheet()
-        super().__init__()
+        super().__init__(self.config.theme, CONFIG_FILE)
 
     def compose(self) -> ComposeResult:
-        yield AppHeader()
+        yield YafHeader()
         yield MainArea(self.client, self._list_colors())
 
     @property
@@ -89,15 +94,11 @@ class YafyafApp(AccountFlow, EditFlow, App):
 
     def _list_colors(self) -> ListColors:
         return ListColors(
-            date=self._palette["comment"],
-            link=self._palette["blue"],
-            heading=self._palette["yellow"],
-            tag=self._palette["purple"],
+            date=self.palette["comment"],
+            link=self.palette["blue"],
+            heading=self.palette["yellow"],
+            tag=self.palette["purple"],
         )
-
-    def get_css_variables(self) -> dict[str, str]:
-        """Serve the base16 palette to the stylesheet alongside Textual's own."""
-        return {**super().get_css_variables(), **self._palette}
 
     def on_mount(self) -> None:
         for warning in self.config.warnings:
@@ -110,71 +111,16 @@ class YafyafApp(AccountFlow, EditFlow, App):
 
     # -- theme
 
-    def action_show_themes(self) -> None:
-        """Browse themes, applying each one as the cursor moves."""
-        self.push_screen(ThemePicker(effective_theme(self.config.theme)), callback=self._theme_chosen)
-
-    def _theme_chosen(self, theme_name: str | None) -> None:
-        if theme_name is not None:
-            self.set_theme(theme_name)
-
-    def set_theme(self, theme_name: str) -> None:
-        """Apply a theme and remember it for next launch."""
-        if effective_theme(theme_name) == effective_theme(self.config.theme):
-            return
-        self.apply_theme(theme_name)
-        self.config.theme = theme_name
-        save_theme(theme_name)
-        self.notify(f"Theme set to {theme_name}")
-
     def apply_theme(self, theme_name: str) -> None:
-        """Swap the palette and repaint in place."""
-        self._palette = load_palette(theme_name)
-        self.refresh_css()
+        super().apply_theme(theme_name)
         # refresh_css only re-applies TCSS; the list and the view bake some colors into Rich text
         self.main.set_colors(self._list_colors())
-
-    # -- notifications
-
-    def notify(
-        self,
-        message: str,
-        *,
-        title: str = "",
-        severity: SeverityLevel = "information",
-        timeout: float | None = None,
-        markup: bool = False,
-    ) -> None:
-        """Show notifications in the header instead of as toasts.
-
-        Messages carry server errors and file paths, which may contain brackets, so markup is never on.
-        """
-        notification = Notification(message, title, severity, self.NOTIFICATION_TIMEOUT if timeout is None else timeout)
-        self.call_later(self._show_notification, notification)
-
-    def _show_notification(self, notification: Notification) -> None:
-        for screen in reversed(self.screen_stack):
-            notifications = list(screen.query(HeaderNotification))
-            if notifications:
-                notifications[0].show_notification(notification)
-                return
-        super().notify(
-            notification.message,
-            title=notification.title,
-            severity=notification.severity,
-            timeout=max(notification.time_left, 0),
-            markup=False,
-        )
 
     # -- messages from the widgets
 
     @on(SettingsRequested)
     def action_settings(self) -> None:
         self.push_screen(SettingsScreen())
-
-    @on(HelpRequested)
-    def action_help(self) -> None:
-        self.push_screen(HelpScreen())
 
     @on(RetryRequested)
     def _retry(self) -> None:

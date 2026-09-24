@@ -7,12 +7,13 @@ work they delegate to.
 import asyncio
 from datetime import date
 
+from ouikit.dialog import ConfirmDialog
 from textual import work
 from textual.app import SuspendNotSupported
 
 from .api import ApiConnectionError, ApiError, NotFoundError, Yaf, YafyafClient
 from .editor import Draft, DraftError, EditorError, Entry
-from .screens import EDIT_AGAIN, RETRY, ConfirmDialog, NotSavedDialog
+from .screens import EDIT_AGAIN, RETRY, NotSavedDialog
 from .widgets import MainArea, YafsView
 
 

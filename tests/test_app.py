@@ -4,14 +4,16 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from ouikit import shortcuts
+from ouikit.header_notification import HeaderNotification
+from ouikit.help_screen import HelpScreen
 from textual.widgets import Static
 
-from yafyaf_tui import shortcuts
 from yafyaf_tui.accounts import TokenStore
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.config import DEFAULT_URL, Config
-from yafyaf_tui.screens import HelpScreen, SettingsScreen
-from yafyaf_tui.widgets import AccountLink, Saying, HeaderNotification, YafDetail, YafsTable, YafsView
+from yafyaf_tui.screens import SettingsScreen
+from yafyaf_tui.widgets import AccountLink, Saying, YafDetail, YafsTable, YafsView
 
 from support import ME, ME_ACCOUNT, ONE_PAGE, header_message, patched_list, patched_me, settle
 
@@ -106,7 +108,7 @@ class AppTest(unittest.TestCase):
                     self.assertEqual(list(app.screen.query("Toast")), [])
                     header = app.query_one("#app-header")
                     self.assertIs(notification.parent, header)
-                    self.assertGreater(notification.region.x, app.query_one("#app-title-group").region.right)
+                    self.assertGreater(notification.region.x, app.query_one("#app-title").region.right)
                     self.assertLess(notification.region.right, app.query_one("#app-url").region.x)
 
                     notification.clear_notification()

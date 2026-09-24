@@ -1,10 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   BASE STYLES - Layout and structure (colors come from theme)
+   BASE STYLES - where yafyaf's differ from ouikit's
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* A full-size app rather than a pop-up, so it draws its own frame */
 Screen {
-    background: $bg;
-    color: $fg;
     border: solid $gutter;
 }
 

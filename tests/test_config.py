@@ -2,8 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from yafyaf_tui.config import DEFAULT_URL, Config, load_config, resolve_url, save_theme
-from yafyaf_tui.theme import default_theme
+from yafyaf_tui.config import DEFAULT_URL, Config, load_config, resolve_url
 
 
 class LoadConfigTest(unittest.TestCase):
@@ -18,15 +17,13 @@ class LoadConfigTest(unittest.TestCase):
         missing = load_config(Path("/nonexistent/config.yaml"))
         self.assertEqual(missing, Config())
 
-    def test_a_theme_that_is_not_installed_warns_with_a_near_miss(self) -> None:
+    def test_a_theme_that_is_not_installed_is_a_warning(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yaml"
             path.write_text("theme: onelight\n")
             config = load_config(path)
-        self.assertEqual(config.theme, default_theme())
         self.assertEqual(len(config.warnings), 1)
         self.assertIn("'onelight' is not installed", config.warnings[0])
-        self.assertIn("one-light", config.warnings[0])
 
     def test_terminal_theme_is_the_default_and_always_accepted(self) -> None:
         self.assertEqual(Config().theme, "terminal")
@@ -38,22 +35,7 @@ class LoadConfigTest(unittest.TestCase):
         self.assertEqual(config.warnings, [])
 
 
-class SaveThemeTest(unittest.TestCase):
-    def test_replaces_the_theme_line_and_leaves_the_rest_of_the_file_alone(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "config.yaml"
-            save_theme("dracula", path)
-            self.assertEqual(path.read_text(), "theme: dracula\n")
-
-            path.write_text("# my config\ntheme: onedark\nsomething: else\n")
-            save_theme("dracula", path)
-            self.assertEqual(path.read_text(), "# my config\ntheme: dracula\nsomething: else\n")
-            self.assertEqual(load_config(path).theme, "dracula")
-
-            path.write_text("something: else\n")
-            save_theme("nord", path)
-            self.assertEqual(path.read_text(), "theme: nord\nsomething: else\n")
-
+class ServersAndInvalidConfigTest(unittest.TestCase):
     def test_servers_list_the_login_choices_and_bad_entries_warn(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yaml"

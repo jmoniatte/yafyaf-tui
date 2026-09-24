@@ -1,30 +1,19 @@
+from ouikit.panel import PanelScreen
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, Select, Static
 
-from ..theme import effective_theme, selectable_themes
-from .panel import PanelScreen
-
 ADD_ACCOUNT = "+"
 
 
 class SettingsScreen(PanelScreen):
-    """The theme and the signed-in account; the shortcuts are on the Help panel."""
+    """The signed-in account; the theme is picked with t and the shortcuts are on the Help panel."""
 
     def compose(self) -> ComposeResult:
         with Vertical(id="settings-panel"):
             yield Static("Settings", id="dialog-title")
             yield Static("", id="title-separator")
-
-            with Horizontal(classes="settings-row"):
-                yield Static("Theme", classes="settings-label")
-                yield Select(
-                    options=[(name, name) for name in selectable_themes()],
-                    value=effective_theme(self.app.config.theme),
-                    id="theme-selector",
-                    allow_blank=False,
-                )
 
             with Horizontal(classes="settings-row", id="settings-account-row"):
                 yield Static("Account", classes="settings-label")
@@ -45,12 +34,6 @@ class SettingsScreen(PanelScreen):
             yield Static("", id="panel-footer-spacer")
             with Horizontal(id="panel-footer"):
                 yield Button("Close", id="btn-close")
-
-    @on(Select.Changed, "#theme-selector")
-    def _theme_changed(self, event: Select.Changed) -> None:
-        event.stop()
-        if event.value is not Select.NULL:
-            self.app.set_theme(event.value)
 
     @on(Select.Changed, "#account-selector")
     def _account_changed(self, event: Select.Changed) -> None:

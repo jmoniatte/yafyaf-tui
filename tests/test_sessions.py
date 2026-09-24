@@ -15,9 +15,11 @@ from yafyaf_tui.api import (
 )
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.config import DEFAULT_URL, Config
-from yafyaf_tui.screens import ConfirmDialog, LoginScreen, SettingsScreen
+from ouikit.dialog import ConfirmDialog
+from ouikit.theme import load_palette
+
+from yafyaf_tui.screens import LoginScreen, SettingsScreen
 from yafyaf_tui.screens.settings_screen import ADD_ACCOUNT
-from yafyaf_tui.theme import load_palette
 from yafyaf_tui.widgets import OfflineNotice, YafsTable, YafsView
 
 from support import ME, ME_ACCOUNT, OTHER, OTHER_ACCOUNT, SAYINGS, SAYINGS_ACCOUNT, URL, header_message, patched_list, patched_me, row_text, settle

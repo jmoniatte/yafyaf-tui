@@ -1,13 +1,13 @@
 import argparse
 from collections.abc import Sequence
 
+from ouikit.start import start
+
 from . import __version__
 from .app import YafyafApp
 from .commands import new_yaf
 from .accounts import TokenStore
 from .config import DEFAULT_URL, URL_ENV_VAR, load_config, resolve_url, url_was_given
-from .terminal_theme import query_terminal
-from .theme import register_terminal_scheme
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -42,11 +42,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     account = store.starting_account(url, email, url_was_given(args.url))
 
-    # Must run before Textual takes the tty; a silent terminal just yields None.
-    terminal = query_terminal()
-    register_terminal_scheme(terminal.scheme, terminal.light_background)
-    app = YafyafApp(url=url, config=config, token_store=store, account=account, login_email="" if account else email)
-    app.run()
+    start("yaf", lambda: YafyafApp(url=url, config=config, token_store=store, account=account, login_email="" if account else email))
 
 
 if __name__ == "__main__":

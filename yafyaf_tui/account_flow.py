@@ -6,13 +6,14 @@ work they delegate to.
 
 import asyncio
 
+from ouikit.dialog import ConfirmDialog
 from textual import work
 
 from .accounts import Account, TokenStore
 from .api import ApiConnectionError, ApiError, AuthenticationError, User, YafyafClient
 from .config import DEFAULT_URL, Config, server_name
-from .screens import ConfirmDialog, Login, LoginScreen
-from .widgets import AppHeader, MainArea, YafsView
+from .screens import Login, LoginScreen
+from .widgets import MainArea, YafHeader, YafsView
 
 
 class AccountFlow:
@@ -121,7 +122,7 @@ class AccountFlow:
         email = self.account.email if self.account else ""
         # Only a non-production server is worth calling out
         server = server_name(self.url) if self.url != DEFAULT_URL else ""
-        self.query_one(AppHeader).show_account(email, server)
+        self.query_one(YafHeader).show_account(email, server)
 
     def confirm_sign_out(self) -> None:
         """Ask before signing out; the settings screen is the way in."""

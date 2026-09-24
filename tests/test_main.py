@@ -17,7 +17,6 @@ from yafyaf_tui.api import (
 )
 from yafyaf_tui.commands import new_yaf
 from yafyaf_tui.config import DEFAULT_URL, Config
-from yafyaf_tui.terminal_theme import TerminalReport
 
 from support import ME_ACCOUNT, python_editor
 
@@ -30,11 +29,10 @@ class MainTest(unittest.TestCase):
         self.assertEqual(output.getvalue().strip(), f"YafYaf TUI {__version__}")
 
     def test_url_flag_and_environment_pick_the_server(self) -> None:
-        # The test runner may sit on a real tty; do not send it colour queries
         with (
             tempfile.TemporaryDirectory() as tmp,
             patch("yafyaf_tui.__main__.YafyafApp") as app_class,
-            patch("yafyaf_tui.__main__.query_terminal", return_value=TerminalReport()) as query,
+            patch("yafyaf_tui.__main__.start", side_effect=lambda name, make_app: make_app().run()) as start,
             patch("yafyaf_tui.__main__.TokenStore.default", return_value=TokenStore(Path(tmp) / "tokens.yaml")),
             patch("yafyaf_tui.__main__.load_config", return_value=Config()),
         ):
@@ -48,20 +46,20 @@ class MainTest(unittest.TestCase):
         self.assertEqual([call.kwargs["account"] for call in app_class.call_args_list], [None, None, None])
         self.assertEqual([call.kwargs["login_email"] for call in app_class.call_args_list], ["", "", "me@example.com"])
         self.assertEqual(app_class.return_value.run.call_count, 3)
-        self.assertEqual(query.call_count, 3)
+        self.assertEqual(start.call_count, 3)
 
     def test_new_command_creates_a_yaf_without_starting_the_tui(self) -> None:
         with (
             tempfile.TemporaryDirectory() as tmp,
             patch("yafyaf_tui.__main__.YafyafApp") as app_class,
             patch("yafyaf_tui.__main__.new_yaf", return_value=0) as command,
-            patch("yafyaf_tui.__main__.query_terminal") as query,
+            patch("yafyaf_tui.__main__.start") as start,
             patch("yafyaf_tui.__main__.TokenStore.default", return_value=TokenStore(Path(tmp) / "tokens.yaml")),
             patch("yafyaf_tui.__main__.load_config", return_value=Config()),
             self.assertRaises(SystemExit) as raised,
         ):
             main(["new", "--url", "http://localhost:3100", "--as", "sayings@example.com"])
-        query.assert_not_called()
+        start.assert_not_called()
         self.assertEqual(raised.exception.code, 0)
         self.assertEqual(command.call_args.args[0], "http://localhost:3100")
         self.assertEqual(command.call_args.args[1].path.name, "tokens.yaml")

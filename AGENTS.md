@@ -1,20 +1,26 @@
 # YafYaf TUI
 
 Terminal client for the YafYaf notes API (the Rails app in `../yafyaf`, REST under `/api/`
-with Bearer token auth).
+with Bearer token auth). The themes, the header and its messages, Help, the dialogs and the
+startup come from [ouikit](../ouikit), the folder next to this one, shared with ouie, ouifi and
+flotte.
 
 ## Rules
 
 - Do not git commit unless asked
-- The help screen (`?`, or clicking the logo) lists every binding that has a description and
-  a `group` (`shortcuts.ACTIONS` or `shortcuts.GENERAL`); document a new key there, not in
-  `help_screen.py`
+- The help screen (`?`, or clicking the logo, ouikit's `HelpScreen`) lists every binding that
+  has a description and a `group` (`ouikit.shortcuts.ACTIONS` or `GENERAL`) in
+  `YafyafApp.HELP_BINDINGS` and `YafyafApp.BINDINGS`; document a new key there
+- Code that every app would use goes in ouikit, not here; see its AGENTS.md
 
 ## Run
 
 ```bash
 yaf
 ```
+
+It refuses to open the TUI unless stdin and stdout are a terminal (ouikit's `start`); `yaf new`
+does not go through that check.
 
 ## Test
 
@@ -25,7 +31,8 @@ uv run python -m unittest discover -s tests
 uv run ruff check .
 ```
 
-There is no pytest. `ruff` is pinned in the `dev` dependency group, so use
+There is no pytest. `uv sync` installs ouikit from `../ouikit` (`[tool.uv.sources]`), so a
+change there shows up here without reinstalling. `ruff` is pinned in the `dev` dependency group, so use
 `uv run ruff`, not whatever `ruff` is on PATH.
 
 ## Structure
@@ -33,65 +40,32 @@ There is no pytest. `ruff` is pinned in the `dev` dependency group, so use
 ```
 yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
   yafyaf_tui/           # Python package
-    app.py              # Main Textual app: state, layout, theme, notifications, message handlers
+    app.py              # Main Textual app (an ouikit BaseApp): state, layout, message handlers
     account_flow.py     # AccountFlow mixin: sign in, token checks, switching servers, sign out
     edit_flow.py        # EditFlow mixin: fetch, edit in the editor, save, delete, the not-saved dialog
     commands.py         # Shell commands that skip the TUI (yaf new)
-    config.py           # Server URL resolution, optional config.yaml (theme, servers)
+    config.py           # Server URL resolution, optional config.yaml (theme through ouikit.config, servers)
     accounts.py         # Account (server + email) and TokenStore, the single tokens.yaml
     editor.py           # Draft: a yaf as a temp .md file (date in front matter), edited in $VISUAL or $EDITOR
     api/client.py       # Blocking urllib client for /api/; call it via asyncio.to_thread
-    shortcuts.py        # Help screen contents, read off the bindings
-    theme.py            # base16 scheme loading, palette derivation
-    terminal_theme.py   # OSC queries that read the terminal's own palette before Textual starts
-    widgets/            # Textual widgets (main_area.py: shows one of the three panes below, plus the footer with the saying and a Refresh button;
+    widgets/            # Textual widgets (app_header.py: YafHeader, ouikit's header with the server, score and account;
+                        # main_area.py: shows one of the three panes below, plus the footer with the saying and a Refresh button;
                         # yafs_view.py: search box + list, paged from the API; yafs_table.py: its rows;
                         # saying.py: saying + score from the x-yaf-* response headers, polled when idle;
                         # offline_notice.py: replaces the list, and its keys, while the server is down;
                         # yaf_detail.py: one yaf as markdown in place of the list, Enter opens it, e edits)
-    screens/            # Textual screens (settings, help, login, theme picker; panel.py is their base; dialog.py is the base of the
-                        # confirm and not-saved dialogs, each a list of DialogButton)
-    styles/             # one .tcss per component, joined in app.STYLE_FILES order; themes/*.yaml (base16 schemes)
+    screens/            # Textual screens (settings, on ouikit's PanelScreen; login; the not-saved dialog, on ouikit's Dialog)
+    styles/             # one .tcss per component, joined after ouikit's in app.STYLE_FILES order
 ```
 
 ## Themes
 
-`yafyaf_tui/styles/themes/` holds the whole
-[base16 catalogue](https://github.com/tinted-theming/schemes), one scheme file
-per theme, copied in unmodified - never hand-edit one. `theme.py` maps 11 of
-the 16 slots straight onto the TCSS variables the stylesheets use and derives the
-other two (`$bg-dark`, `$gutter`) from the scheme's greyscale ramp, so adding a
-theme means adding a file and nothing else. `config.py` rejects a `theme` that
-does not name one of them.
-
-`theme: terminal` (the default) is not a file. `terminal_theme.py` asks the
-terminal for its colours with OSC 10, 11 and 4 before Textual starts, maps the
-ANSI palette onto base16 slots and derives the rest, and `__main__` registers
-the result with `theme.register_terminal_scheme`. A terminal that stays silent,
-or whose `$fg` on `$bg` fails `MIN_TEXT_CONTRAST`, registers no scheme: the app
-then shows `theme.default_theme()` and the pickers do not list `terminal`. That
-default is `one-light` when the terminal reported a light background and
-`onedark` otherwise, so a rejected light terminal never gets a dark app. The
-surfaces ANSI has no slot for (`base01`, `base02`) are placed by contrast
-against the background rather than by a fixed RGB step, which lands the same
-distance out on light and dark ramps.
-`theme.effective_theme` is the name to compare against or show as current.
-
-Filenames are the upstream scheme slugs verbatim, and that is exactly what
-`config.yaml` sets -- no aliases, no renaming. Upstream is inconsistent about
-hyphens (`onedark` but `one-light`); follow it rather than tidying it.
-
-`scripts/sync_themes.py` refreshes the directory from upstream. It is the only
-place the editorial rule lives: a scheme whose own `$fg` on `$bg` falls below
-`MIN_TEXT_CONTRAST` (WCAG AA) is skipped, since the stylesheets cannot rescue it.
-Do not hand-add a scheme the script would reject.
-
-Settings (`,` or clicking the email in the header) has a theme dropdown; the picker (`t`) previews as the cursor
-moves. Both route through `YafyafApp.set_theme`, which persists the choice;
-`apply_theme` alone does not. The palette is served from `YafyafApp.get_css_variables`
-rather than baked into `CSS`. `refresh_css` only re-applies TCSS, so the yaf
-list, which bakes colors into Rich text, is repainted through
-`YafsView.set_colors`.
+Themes live in ouikit: the base16 schemes, the terminal's own palette, the picker and the rules
+for all of them are in its AGENTS.md. `YafyafApp` is a `ouikit.base_app.BaseApp`, so `t` opens
+the picker and the choice is saved to `~/.config/yafyaf-tui/config.yaml`. The theme is not a
+setting: Settings only holds the account. `refresh_css` only re-applies TCSS, so
+`YafyafApp.apply_theme` also repaints the yaf list, which bakes colors into Rich text, through
+`MainArea.set_colors` with colors from `BaseApp.palette`.
 
 Never hardcode a color in a `.tcss` file.
 
@@ -128,8 +102,8 @@ the last account used, else on `https://yafyaf.com`; see `__main__.main` and `co
 End users configure nothing.
 
 `~/.config/yafyaf-tui/config.yaml` is optional and holds two keys. `theme` is `terminal` (the
-default) or the slug of a scheme in `yafyaf_tui/styles/themes/`; the picker writes it back with
-`config.save_theme`, which replaces the `theme:` line rather than rewriting the file, so a
+default) or the slug of a scheme in ouikit; the picker writes it back with
+`ouikit.config.save_theme`, which replaces the `theme:` line rather than rewriting the file, so a
 hand-written config keeps its comments. `servers` is a list of URLs the login screen offers, for
 example production and a local Rails; with one server (the default) the login screen shows no
 choice. A server started with `--url` is offered too, even when not listed.

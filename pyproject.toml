@@ -8,7 +8,12 @@ dependencies = [
     "textual>=7.2.0",
     "rich>=14.2.0",
     "pyyaml>=6.0",
+    "ouikit",
 ]
+
+[tool.uv.sources]
+# Not published: the folder next to this one, so its changes show up here at once
+ouikit = { path = "../ouikit", editable = true }
 
 [project.scripts]
 yaf = "yafyaf_tui.__main__:main"
@@ -26,6 +31,6 @@ where = ["."]
 include = ["yafyaf_tui*"]
 
 [tool.setuptools.package-data]
-yafyaf_tui = ["styles/*.tcss", "styles/themes/*.yaml"]
+yafyaf_tui = ["styles/*.tcss"]
 
 [tool.setuptools_scm]

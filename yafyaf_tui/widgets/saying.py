@@ -6,7 +6,7 @@ from textual.timer import Timer
 from textual.widgets import Static
 
 from ..api import ApiConnectionError, ApiError, AuthenticationError, YafyafClient
-from .app_header import AppHeader
+from .app_header import YafHeader
 
 # How long the widget keeps a saying before asking the server for another, as a random range
 POLL_SECONDS = (10.0, 30.0)
@@ -40,7 +40,7 @@ class Saying(Static):
     def sync(self) -> None:
         """Show what the client last saw and arm the next poll, or disarm it when signed out."""
         self._show_saying(self._client.saying)
-        self.screen.query_one(AppHeader).show_score(self._client.score)
+        self.screen.query_one(YafHeader).show_score(self._client.score)
         self._schedule_poll(enabled=bool(self._client.token))
 
     def _show_saying(self, saying: str) -> None:

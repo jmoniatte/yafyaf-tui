@@ -11,7 +11,7 @@ from textual.message import Message
 from textual.widgets import DataTable
 
 from ..api import Yaf
-from ..shortcuts import ACTIONS, GENERAL
+from ouikit.shortcuts import ACTIONS, GENERAL
 
 DATE_WIDTH = 10
 HEADING = re.compile(r"#{1,6}\s+(.*?)(?:\s+#+)?\s*$")

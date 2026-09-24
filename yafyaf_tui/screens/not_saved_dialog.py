@@ -1,4 +1,4 @@
-from .dialog import Dialog, DialogButton
+from ouikit.dialog import Dialog, DialogButton
 
 EDIT_AGAIN = "edit"
 RETRY = "retry"

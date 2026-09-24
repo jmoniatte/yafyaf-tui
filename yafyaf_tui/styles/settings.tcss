@@ -1,42 +1,41 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   PANELS (settings, help)
+   PANELS (settings, help) - where yafyaf's differ from ouikit's
    ═══════════════════════════════════════════════════════════════════════ */
 
-PanelScreen {
-    align: center top;
-    background: $bg 80%;
-}
-
+/* Wider than ouikit's, with the two Help columns sharing the width */
 PanelScreen > Vertical {
-    width: auto;
     min-width: 84;
     max-width: 90;
-    height: auto;
     max-height: 80%;
-    background: $bg-dark;
-    border: none;
-    padding: 1 2;
-    margin-top: 4;
 }
 
-/* Settings holds two short rows; only Help needs the room for its two columns */
+/* Settings holds one short row; only Help needs the room for its two columns */
 #settings-panel {
     width: 70;
     min-width: 0;
 }
 
-PanelScreen Static {
-    color: $fg;
-}
-
-PanelScreen #dialog-title {
-    text-style: bold;
-    color: $blue;
-    border-bottom: ascii $gutter;
-}
-
 PanelScreen #title-separator {
     height: 1;
+}
+
+/* A blank line under the title, like Settings */
+HelpScreen #dialog-title {
+    margin-bottom: 1;
+}
+
+PanelScreen #shortcuts-actions {
+    width: 1fr;
+    margin-right: 2;
+}
+
+PanelScreen #shortcuts-general {
+    width: 1fr;
+}
+
+PanelScreen .shortcut-row,
+PanelScreen .shortcut-desc {
+    width: 1fr;
 }
 
 /* A row is the value line and the underline below it; labels and the button sit on the value line */
@@ -83,11 +82,6 @@ PanelScreen Select SelectOverlay > .option-list--option-highlighted {
     text-style: none;
 }
 
-/* Ends the theme dropdown where the account one ends, before Sign out and its margin */
-PanelScreen #theme-selector {
-    margin-right: 16;
-}
-
 PanelScreen #settings-email {
     width: 1fr;
 }
@@ -111,99 +105,4 @@ PanelScreen #btn-sign-out:focus {
     background: $blue;
     color: $bg-dark;
     text-style: bold;
-}
-
-PanelScreen #settings-separator {
-    height: 1;
-    color: $comment;
-    margin-bottom: 1;
-}
-
-PanelScreen .section-title {
-    text-style: bold;
-    color: $fg;
-    border-bottom: ascii $gutter;
-}
-
-PanelScreen #shortcuts-sections {
-    height: auto;
-}
-
-PanelScreen .shortcuts-section {
-    height: auto;
-}
-
-PanelScreen #shortcuts-actions {
-    width: 1fr;
-    margin-right: 2;
-}
-
-PanelScreen #shortcuts-general {
-    width: 1fr;
-}
-
-PanelScreen .shortcut-row {
-    height: 1;
-}
-
-PanelScreen .shortcut-key {
-    width: 8;
-    color: $green;
-}
-
-PanelScreen .shortcut-desc {
-    color: $fg;
-}
-
-PanelScreen #panel-footer-spacer {
-    height: 1;
-}
-
-PanelScreen #panel-footer {
-    height: 1;
-    align: left middle;
-}
-
-PanelScreen #panel-footer .spacer {
-    width: 1fr;
-}
-
-/* Neutral, like a dialog's cancel button: closing is neither an action nor a danger */
-PanelScreen #btn-close {
-    width: auto;
-    min-width: 0;
-    height: 1;
-    margin: 0;
-    border: none;
-    padding: 0 2;
-    background: $bg-light;
-    color: $fg;
-}
-
-PanelScreen #btn-close:hover {
-    background: $gutter;
-}
-
-PanelScreen #btn-close:focus {
-    background: $comment;
-    color: $bg-dark;
-    text-style: bold;
-}
-
-PanelScreen #panel-version {
-    width: auto;
-    margin-left: 1;
-    color: $comment;
-}
-
-PanelScreen #panel-repository {
-    width: auto;
-    color: $blue;
-    background: transparent;
-}
-
-PanelScreen #panel-repository:hover {
-    color: $blue;
-    text-style: underline;
-    background: transparent;
 }

@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from datetime import date
 
+from ouikit.header_notification import HeaderNotification
 
 from yafyaf_tui.api import (
     User,
@@ -16,7 +17,7 @@ from yafyaf_tui.api import (
 )
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.accounts import Account
-from yafyaf_tui.widgets import HeaderNotification, YafsTable
+from yafyaf_tui.widgets import YafsTable
 
 ME = User(id="abc", email="me@example.com")
 SAYINGS = User(id="say", email="sayings@example.com")

@@ -18,8 +18,11 @@ from yafyaf_tui.api import (
 )
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.config import Config
-from yafyaf_tui.theme import load_palette
-from yafyaf_tui.screens import ConfirmDialog, NotSavedDialog
+
+from ouikit.dialog import ConfirmDialog
+from ouikit.theme import load_palette
+
+from yafyaf_tui.screens import NotSavedDialog
 from yafyaf_tui.widgets import Saying, YafDetail, YafsTable, YafsView
 from yafyaf_tui.widgets.yafs_table import DATE_WIDTH, summary_text
 
