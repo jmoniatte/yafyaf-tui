@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ouikit.theme import list_themes, load_palette
+from tui_kit.theme import list_themes, load_palette
 
 from yafyaf_tui.accounts import TokenStore
 from yafyaf_tui.app import YafyafApp, load_stylesheet

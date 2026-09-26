@@ -2,16 +2,16 @@
 
 Terminal client for the YafYaf notes API (the Rails app in `../yafyaf`, REST under `/api/`
 with Bearer token auth). The themes, the header and its messages, Help, the dialogs and the
-startup come from [ouikit](../ouikit), the folder next to this one, shared with ouie, ouifi and
+startup come from [tui-kit](../tui-kit), the folder next to this one, shared with outils and
 flotte.
 
 ## Rules
 
 - Do not git commit unless asked
-- The help screen (`?`, or clicking the logo, ouikit's `HelpScreen`) lists every binding that
-  has a description and a `group` (`ouikit.shortcuts.ACTIONS` or `GENERAL`) in
+- The help screen (`?`, or clicking the logo, tui-kit's `HelpScreen`) lists every binding that
+  has a description and a `group` (`tui_kit.shortcuts.ACTIONS` or `GENERAL`) in
   `YafyafApp.HELP_BINDINGS` and `YafyafApp.BINDINGS`; document a new key there
-- Code that every app would use goes in ouikit, not here; see its AGENTS.md
+- Code that every app would use goes in tui-kit, not here; see its AGENTS.md
 
 ## Run
 
@@ -19,7 +19,7 @@ flotte.
 yaf
 ```
 
-It refuses to open the TUI unless stdin and stdout are a terminal (ouikit's `start`); `yaf new`
+It refuses to open the TUI unless stdin and stdout are a terminal (tui-kit's `start`); `yaf new`
 does not go through that check.
 
 ## Test
@@ -31,7 +31,7 @@ uv run python -m unittest discover -s tests
 uv run ruff check .
 ```
 
-There is no pytest. `uv sync` installs ouikit from `../ouikit` (`[tool.uv.sources]`), so a
+There is no pytest. `uv sync` installs tui-kit from `../tui-kit` (`[tool.uv.sources]`), so a
 change there shows up here without reinstalling. `ruff` is pinned in the `dev` dependency group, so use
 `uv run ruff`, not whatever `ruff` is on PATH. The app tests never reach a server: `support.no_server()`
 fails every request a test did not patch, as if nothing were running. Use it in any new test
@@ -43,28 +43,28 @@ blanks the saying and score the test set up.
 ```
 yafyaf-tui/             # git root + pyproject.toml (run uv commands here)
   yafyaf_tui/           # Python package
-    app.py              # Main Textual app (an ouikit BaseApp): state, layout, message handlers
+    app.py              # Main Textual app (a tui-kit BaseApp): state, layout, message handlers
     account_flow.py     # AccountFlow mixin: sign in, token checks, switching servers, sign out
     edit_flow.py        # EditFlow mixin: fetch, edit in the editor, save, delete, the not-saved dialog
     commands.py         # Shell commands that skip the TUI (yaf new)
-    config.py           # Server URL resolution, optional config.yaml (theme through ouikit.config, servers)
+    config.py           # Server URL resolution, optional config.yaml (theme through tui_kit.config, servers)
     accounts.py         # Account (server + email) and TokenStore, the single tokens.yaml
     editor.py           # Draft: a yaf as a temp .md file (date in front matter), edited in $VISUAL or $EDITOR
     api/client.py       # Blocking urllib client for /api/; call it via asyncio.to_thread
-    widgets/            # Textual widgets (app_header.py: YafHeader, ouikit's header with the server, score and account;
+    widgets/            # Textual widgets (app_header.py: YafHeader, tui-kit's header with the server, score and account;
                         # main_area.py: shows one of the three panes below, plus the footer with the saying and a Refresh button;
                         # yafs_view.py: search box + list, paged from the API; yafs_table.py: its rows;
                         # saying.py: saying + score from the x-yaf-* response headers, polled when idle;
                         # offline_notice.py: replaces the list, and its keys, while the server is down;
                         # yaf_detail.py: one yaf as markdown in place of the list, Enter opens it, e edits)
-    screens/            # Textual screens (settings, on ouikit's PanelScreen; login; the not-saved dialog, on ouikit's Dialog)
-    styles/             # one .tcss per component, joined after ouikit's in app.STYLE_FILES order
+    screens/            # Textual screens (settings, on tui-kit's PanelScreen; login; the not-saved dialog, on tui-kit's Dialog)
+    styles/             # one .tcss per component, joined after tui-kit's in app.STYLE_FILES order
 ```
 
 ## Themes
 
-Themes live in ouikit: the base16 schemes, the terminal's own palette, the picker and the rules
-for all of them are in its AGENTS.md. `YafyafApp` is a `ouikit.base_app.BaseApp`, so `t` opens
+Themes live in tui-kit: the base16 schemes, the terminal's own palette, the picker and the rules
+for all of them are in its AGENTS.md. `YafyafApp` is a `tui_kit.base_app.BaseApp`, so `t` opens
 the picker and the choice is saved to `~/.config/yafyaf-tui/config.yaml`. The theme is not a
 setting: Settings only holds the account. `refresh_css` only re-applies TCSS, so
 `YafyafApp.apply_theme` also repaints the yaf list, which bakes colors into Rich text, through
@@ -79,7 +79,7 @@ Enter on a row shows the yaf rendered with Textual's Markdown widget, in place o
 whether the saying shows). `e` or Shift+Enter opens the editor from the
 list or from the view, and the editor returns where it started: the view shows the saved
 content, or the new yaf when the old one was deleted elsewhere. A blanked yaf that is
-confirmed deleted drops back to the list. Escape and `q` leave the view; `q` only quits from the list. `y` copies the text selected with the mouse, in the list or the view, or with nothing selected the yaf, to the clipboard through OSC 52; on other screens ouikit's `y` copies the selection. Both paths fetch the server's copy first through
+confirmed deleted drops back to the list. Escape and `q` leave the view; `q` only quits from the list. `y` copies the text selected with the mouse, in the list or the view, or with nothing selected the yaf, to the clipboard through OSC 52; on other screens tui-kit's `y` copies the selection. Both paths fetch the server's copy first through
 `YafyafApp._fetch_current`. A save that fails, whether the draft's front matter is bad or the
 server refused it, opens `NotSavedDialog` over the kept draft: Edit again reopens that same
 draft, Retry (server errors only) sends it again, Discard deletes it. There is no Escape. Shift+Enter only reaches the app in terminals that speak the
@@ -105,8 +105,8 @@ the last account used, else on `https://yafyaf.com`; see `__main__.main` and `co
 End users configure nothing.
 
 `~/.config/yafyaf-tui/config.yaml` is optional and holds two keys. `theme` is `terminal` (the
-default) or the slug of a scheme in ouikit; the picker writes it back with
-`ouikit.config.save_theme`, which replaces the `theme:` line rather than rewriting the file, so a
+default) or the slug of a scheme in tui-kit; the picker writes it back with
+`tui_kit.config.save_theme`, which replaces the `theme:` line rather than rewriting the file, so a
 hand-written config keeps its comments. `servers` is a list of URLs the login screen offers, for
 example production and a local Rails; with one server (the default) the login screen shows no
 choice. A server started with `--url` is offered too, even when not listed.

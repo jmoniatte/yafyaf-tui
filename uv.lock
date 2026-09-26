@@ -50,16 +50,6 @@ wheels = [
 ]
 
 [[package]]
-name = "ouikit"
-version = "0.1.0"
-source = { git = "ssh://git@github.com/jmoniatte/ouikit.git?branch=master#f6712d87b578b2fdaa2cc336761e49f523ac00c2" }
-dependencies = [
-    { name = "pyyaml" },
-    { name = "rich" },
-    { name = "textual" },
-]
-
-[[package]]
 name = "platformdirs"
 version = "4.11.8"
 source = { registry = "https://pypi.org/simple" }
@@ -188,6 +178,16 @@ wheels = [
 ]
 
 [[package]]
+name = "tui-kit"
+version = "0.1.0"
+source = { git = "ssh://git@github.com/jmoniatte/tui-kit.git?branch=master#a56bcf0e2c256f465db1d68a2d4bf6f7d2eefe46" }
+dependencies = [
+    { name = "pyyaml" },
+    { name = "rich" },
+    { name = "textual" },
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -200,10 +200,10 @@ wheels = [
 name = "yafyaf-tui"
 source = { editable = "." }
 dependencies = [
-    { name = "ouikit" },
     { name = "pyyaml" },
     { name = "rich" },
     { name = "textual" },
+    { name = "tui-kit" },
 ]
 
 [package.dev-dependencies]
@@ -213,10 +213,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ouikit", git = "ssh://git@github.com/jmoniatte/ouikit.git?branch=master" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", specifier = ">=14.2.0" },
     { name = "textual", specifier = ">=7.2.0" },
+    { name = "tui-kit", git = "ssh://git@github.com/jmoniatte/tui-kit.git?branch=master" },
 ]
 
 [package.metadata.requires-dev]

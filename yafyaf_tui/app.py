@@ -1,8 +1,8 @@
 from pathlib import Path
 
-import ouikit
-from ouikit.base_app import HELP_BINDING, THEME_BINDING, BaseApp
-from ouikit.shortcuts import GENERAL
+import tui_kit
+from tui_kit.base_app import HELP_BINDING, THEME_BINDING, BaseApp
+from tui_kit.shortcuts import GENERAL
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -33,7 +33,7 @@ from .widgets import (
 STYLES_DIR = Path(__file__).parent / "styles"
 # One stylesheet per component, in cascade order: later files may rely on rules in earlier ones
 STYLE_FILES = (
-    *ouikit.STYLE_FILES,
+    *tui_kit.STYLE_FILES,
     *(STYLES_DIR / f"{name}.tcss" for name in ("header", "main_area", "yaf_detail", "saying", "settings", "login")),
 )
 

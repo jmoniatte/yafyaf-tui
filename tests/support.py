@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from datetime import date
 
-from ouikit.header_notification import HeaderNotification
+from tui_kit.header_notification import HeaderNotification
 
 from yafyaf_tui.api import (
     ApiConnectionError,

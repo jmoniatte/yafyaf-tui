@@ -4,9 +4,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from ouikit import shortcuts
-from ouikit.header_notification import HeaderNotification
-from ouikit.help_screen import HelpScreen
+from tui_kit import shortcuts
+from tui_kit.header_notification import HeaderNotification
+from tui_kit.help_screen import HelpScreen
 from textual.widgets import Static
 
 from yafyaf_tui.accounts import TokenStore

@@ -5,8 +5,8 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import yaml
-from ouikit.config import read_theme
-from ouikit.theme import TERMINAL_THEME
+from tui_kit.config import read_theme
+from tui_kit.theme import TERMINAL_THEME
 
 CONFIG_DIR = Path.home() / ".config" / "yafyaf-tui"
 CONFIG_FILE = CONFIG_DIR / "config.yaml"
@@ -28,7 +28,7 @@ class Config:
     """Optional, hand-edited settings; the tokens are not among them."""
 
     # Set with t in the app; "terminal" reads the terminal's own colours, otherwise any
-    # scheme in ouikit (see ouikit.theme.list_themes()).
+    # scheme in tui-kit (see tui_kit.theme.list_themes()).
     theme: str = TERMINAL_THEME
     # The servers the login screen offers; production alone unless the file lists more
     servers: list[str] = field(default_factory=lambda: [DEFAULT_URL])

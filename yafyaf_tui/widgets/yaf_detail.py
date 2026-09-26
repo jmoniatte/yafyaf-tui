@@ -5,7 +5,7 @@ from textual.message import Message
 from textual.widgets import Markdown, Static
 
 from ..api import Yaf
-from ouikit.shortcuts import ACTIONS
+from tui_kit.shortcuts import ACTIONS
 from .yaf_markdown import YafMarkdown
 from .yafs_table import ListColors
 from .yafs_view import EditRequested

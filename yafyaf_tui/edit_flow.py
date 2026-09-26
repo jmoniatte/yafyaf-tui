@@ -7,7 +7,7 @@ work they delegate to.
 import asyncio
 from datetime import date
 
-from ouikit.dialog import ConfirmDialog
+from tui_kit.dialog import ConfirmDialog
 from textual import work
 from textual.app import SuspendNotSupported
 

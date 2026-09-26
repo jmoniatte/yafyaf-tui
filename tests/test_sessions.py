@@ -15,8 +15,8 @@ from yafyaf_tui.api import (
 )
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.config import DEFAULT_URL, Config
-from ouikit.dialog import ConfirmDialog
-from ouikit.theme import load_palette
+from tui_kit.dialog import ConfirmDialog
+from tui_kit.theme import load_palette
 
 from yafyaf_tui.screens import LoginScreen, SettingsScreen
 from yafyaf_tui.screens.settings_screen import ADD_ACCOUNT

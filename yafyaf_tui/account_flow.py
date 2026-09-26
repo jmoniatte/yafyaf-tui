@@ -6,7 +6,7 @@ work they delegate to.
 
 import asyncio
 
-from ouikit.dialog import ConfirmDialog
+from tui_kit.dialog import ConfirmDialog
 from textual import work
 
 from .accounts import Account, TokenStore

@@ -19,8 +19,8 @@ from yafyaf_tui.api import (
 from yafyaf_tui.app import YafyafApp
 from yafyaf_tui.config import Config
 
-from ouikit.dialog import ConfirmDialog
-from ouikit.theme import load_palette
+from tui_kit.dialog import ConfirmDialog
+from tui_kit.theme import load_palette
 
 from yafyaf_tui.screens import NotSavedDialog
 from yafyaf_tui.widgets import Saying, YafDetail, YafsTable, YafsView

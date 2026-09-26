@@ -8,7 +8,7 @@ from textual.message import Message
 from textual.widgets import Button, DataTable, Input, Select, Static
 
 from ..api import ApiConnectionError, ApiError, Tag, Yaf, YafPage, YafyafClient
-from ouikit.shortcuts import ACTIONS
+from tui_kit.shortcuts import ACTIONS
 from .dashed_rule import DashedRule
 from .yafs_table import DATE_WIDTH, ListColors, YafsTable
 

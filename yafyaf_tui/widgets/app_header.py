@@ -1,4 +1,4 @@
-from ouikit.app_header import AppHeader
+from tui_kit.app_header import AppHeader
 from textual.message import Message
 from textual.widgets import Static
 
@@ -18,7 +18,7 @@ class AccountLink(Static):
 
 
 class YafHeader(AppHeader):
-    """ouikit's header, with the server when it is not production, the score and the account on the right.
+    """tui-kit's header, with the server when it is not production, the score and the account on the right.
 
     The app and the saying widget fill the labels through show_account and show_score.
     """
